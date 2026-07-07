@@ -20,13 +20,13 @@ The delivery-runner owns the post-REQ delivery flow through batch grouping, batc
 
 ## Root kickoff concurrency rule
 
-For kanban-backed delivery, the default rule is that a `delivery-runner` should have at most one root delivery kickoff card in `running` state globally across all project boards unless a project overlay explicitly documents a different concurrency model.
+Kanban-backed delivery is forbidden. A `delivery-runner` should have at most one root delivery kickoff item in active execution globally.
 
-- Additional root kickoff cards assigned to `delivery-runner`, even on different project boards, should remain unclaimed in `ready` until the active root delivery chain reaches a terminal or attention-returning state (`done`, `archived`, or explicit `blocked` escalation back to lead).
-- The runner should not silently start a second root delivery chain in parallel just because another kickoff card exists on the same board or a different board.
-- If queued root kickoff cards accumulate or priority/order is unclear, the runner should post a lead-visible backlog/ordering note instead of guessing.
-- Downstream implementation and QC handoffs do not need to become kanban cards by default; the runner may use ordinary handoff artifacts/messages unless the project overlay explicitly requires kanban child-card routing.
-- By default, the runner should organize Git delivery around one primary pull request per claimed root kickoff card so the PR boundary matches the approved scope and completion semantics of that kickoff. If one kickoff legitimately needs multiple PRs, the split should be explicit in the overlay or kickoff context rather than invented silently mid-run.
+- Additional root kickoff items assigned to `delivery-runner` should remain unclaimed in `ready` until the active root delivery chain reaches a terminal or attention-returning state (`done`, `archived`, or explicit `blocked` escalation back to lead).
+- The runner should not silently start a second root delivery chain in parallel just because another kickoff item exists.
+- If queued root kickoff items accumulate or priority/order is unclear, the runner should post a lead-visible backlog/ordering note in the artifact/state trail instead of guessing.
+- Downstream implementation and QC handoffs must not become kanban cards; the runner should use ordinary handoff artifacts/messages.
+- By default, the runner should organize Git delivery around one primary pull request per claimed root kickoff item so the PR boundary matches the approved scope and completion semantics of that kickoff. If one kickoff legitimately needs multiple PRs, the split should be explicit in the overlay or kickoff context rather than invented silently mid-run.
 - The runner may open and iterate on the kickoff PR during delivery, but should not assume authority to merge it merely because implementation, QC, and REQ sync are complete. Default merge ownership remains with the lead after hand-back at `confirm-req-implemented`.
 
 - The normal runner-owned endpoint is `confirm-req-implemented`.
@@ -36,8 +36,8 @@ For kanban-backed delivery, the default rule is that a `delivery-runner` should 
 - If the same QC gap is still unresolved on the 3rd verdict, the runner must stop the rework loop and escalate to the lead with options and recommendation.
 - REQ ambiguity, conflicting acceptance criteria, scope mismatch, release-risk posture, or other governance questions should be escalated immediately instead of consuming the QC retry budget.
 - `draft-release`, `confirm-release`, and release-stage user-facing planning do not belong to the runner by default.
-- Once delivery evidence and REQ sync are complete, the runner must close the active root kickoff by reflecting a lead-visible `done` state and hand the repository back to the lead for release-stage planning and approval.
-- A separate `delivery-runner -> lead` completion summary is optional by default. Teams may send one when it improves handoff clarity, but the canonical required completion signal is the lead-visible `done` state plus the persisted delivery artifacts/state that the lead can inspect during release review.
+- Once delivery evidence and REQ sync are complete, the runner must close the active root kickoff by reflecting a lead-visible `done` delivery-state transition and hand the repository back to the lead for release-stage planning and approval.
+- A separate `delivery-runner -> lead` completion summary is optional by default. Teams may send one when it improves handoff clarity, but the canonical required completion signal is the lead-visible `done` delivery state plus the persisted delivery artifacts/state that the lead can inspect during release review.
 
 ## Must avoid
 

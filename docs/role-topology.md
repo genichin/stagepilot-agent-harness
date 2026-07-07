@@ -23,11 +23,12 @@ Default post-REQ behavior:
 
 - `confirm-req` does not wait for a second user kickoff by default.
 - The lead may issue `lead -> delivery-runner` automatically once REQ approval completes, unless the user explicitly asked to hold, defer, batch later, or wait.
-- For kanban-backed delivery, this handoff is a root kickoff card on the project's canonical board.
-- The runner claims that kickoff only through the documented claim semantics.
-- Default concurrency is one root kickoff card in `running` per runner globally across boards.
-- Downstream impl/QC handoffs stay transport-agnostic unless a project overlay opts into child-card routing.
-- One root kickoff card maps to one primary PR by default.
+- By default, this handoff is a kickoff artifact plus a small delivery-state record; optional Telegram notification may mirror it for visibility.
+- Artifact creation alone does not start runner work. The lead must explicitly launch `delivery-runner`; the default harness launch path is `scripts/lead-launch-runner.sh`, which runs `hermes --profile delivery-runner` in detached background `tmux`.
+- The runner claims that kickoff only through the documented artifact/state claim semantics.
+- Default concurrency is one root kickoff item in active execution per runner globally unless a project overlay documents otherwise.
+- Downstream impl/QC handoffs stay transport-agnostic and must not use kanban.
+- One root kickoff item maps to one primary PR by default.
 - The runner may open/update that PR, but the default merge decision belongs to the lead after `confirm-req-implemented`.
 
 ## Release boundary after delivery

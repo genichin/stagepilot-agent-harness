@@ -15,7 +15,7 @@ This repository standardizes role boundaries, handover contracts, state transiti
 - Keep the **delivery-runner** responsible for orchestration across the delivery chain.
 - Keep **implementation** and **QC** as distinct worker roles.
 - Make handovers explicit, reviewable, and reusable.
-- Treat kanban state + notifications as operational signals rather than informal chat memory.
+- Treat persisted artifacts/state as the canonical operational signals rather than informal chat memory.
 - Support project-specific overlays without cloning the full operating model per project.
 - Keep docs, templates, SOUL baselines, and Hermes skills under a single source of truth.
 
@@ -50,16 +50,19 @@ stagepilot-agent-harness/
 
 Use these as the normative defaults:
 
+- Kanban is forbidden in this harness. Do not use board/card transport for kickoff, queueing, implementation, QC, or completion.
 - `lead` owns Discovery drafting/approval and REQ drafting/approval.
 - `delivery-runner` starts after approved Discovery + approved REQ handoff and owns delivery orchestration within that approved scope.
 - After `confirm-req`, the lead may auto-kick off delivery unless the user explicitly asked to hold, defer, batch later, or wait.
-- Kanban is required by default only at the `lead -> delivery-runner` root boundary; downstream impl/QC handoffs are transport-agnostic unless an overlay opts into child cards.
-- A kanban kickoff is claimed only when the root card is assigned to `delivery-runner`, moved from `ready` to `running`, and acknowledged by the runner.
-- Default runner concurrency is one root kickoff card in `running` globally across boards; additional kickoff cards remain queued in `ready`.
-- One root kickoff card maps to one primary PR by default; the runner may open/update it, but the default merge decision belongs to the lead after `confirm-req-implemented`.
+- Default root transport is an explicit kickoff artifact plus a small delivery-state record; optional Telegram notification may mirror it for visibility, but notification is not the source of truth.
+- Artifact creation alone does not start execution. The lead explicitly launches `delivery-runner`, and the default harness launcher is `scripts/lead-launch-runner.sh`, which starts a detached background `tmux` session running `hermes --profile delivery-runner`.
+- Downstream impl/QC handoffs are transport-agnostic and must not use kanban.
+- A default root kickoff is claimed only when the delivery state names `delivery-runner` as owner target, moves from `ready` to `claimed` or `in_progress`, and is acknowledged by the runner.
+- Default runner concurrency is one root kickoff item in active execution globally; additional kickoff items remain queued in `ready`.
+- One root kickoff item maps to one primary PR by default; the runner may open/update it, but the default merge decision belongs to the lead after `confirm-req-implemented`.
 - The standard path includes `delivery-runner -> dev-qc` before `confirm-batch-verification`.
 - QC retry budget is 3 verdict cycles for the same acceptance scope; the 3rd unresolved verdict escalates to `lead`.
-- Required completion signal: root kickoff reaches lead-visible `done` with persisted delivery artifacts. Separate completion summary is optional by default.
+- Required completion signal: delivery state reaches lead-visible `done` with persisted delivery artifacts. Separate completion summary is optional by default.
 
 - `lead -> delivery-runner`
 - `delivery-runner -> dev-impl`
@@ -71,11 +74,11 @@ Use these as the normative defaults:
 
 | Step | Handoff | Default meaning |
 |---|---|---|
-| 1 | `lead -> delivery-runner` | Approved Discovery + Approved REQ handoff starts delivery orchestration. |
+| 1 | `lead -> delivery-runner` | Approved Discovery + Approved REQ handoff starts delivery orchestration through a kickoff artifact + delivery-state record, then the lead explicitly launches the runner in the background via `scripts/lead-launch-runner.sh`. Optional Telegram notification may mirror the kickoff. |
 | 2 | `delivery-runner -> dev-impl` | Implementation worker executes the approved batch scope and returns concrete change/test evidence. |
 | 3 | `delivery-runner -> dev-qc` | Independent QC reviews verification target, acceptance mapping, evidence bundle, and suspicious areas before batch verification approval. |
 | 4 | `delivery-runner -> lead` escalation | Scope, priority, approval, or release-policy questions go back to the lead instead of being decided silently in delivery. |
-| 5 | `delivery-runner -> lead` completion summary (optional) | Optional wrap-up message after `confirm-req-implemented`; the required completion signal is the root kickoff moving to lead-visible `done` with persisted delivery artifacts available for release review. |
+| 5 | `delivery-runner -> lead` completion summary (optional) | Optional wrap-up message after `confirm-req-implemented`; the required completion signal is the delivery state moving to lead-visible `done` with persisted delivery artifacts available for release review. |
 
 #### Visual chain
 
@@ -156,27 +159,28 @@ The current catalog contains:
   - `skills/stagepilot-handoffs/`
 - **1 operational tooling skill**
   - `skills/stagepilot-doctor-ops/`
-- **21 imported StagePilot workflow skills**
-  - discovery, requirements, batch, release, and orchestration skills imported from `stage-pilot/skills/`
+- **21 consolidated StagePilot workflow skills**
+  - discovery, requirements, batch, release, and orchestration skills now maintained directly in this repo
 
 Repository policy: `skills/` should contain skill directories only. Catalog/audit prose belongs under `docs/`.
 
-## Recommended Use
+## Use
 
 1. Start from the docs in `docs/` and `roles/`.
 2. Use `docs/profile-bootstrap.md` when turning the harness into real Hermes profiles.
 3. Use `docs/model-policy.md` for the default role-to-model mapping.
 4. Copy or adapt the baseline role SOUL templates from `profiles/templates/`.
 5. Use the handover templates in `templates/` and the contracts in `handoffs/`.
-6. Install or export the repo-backed skills when you want Hermes profiles to consume the harness directly.
-7. Place project-specific deviations under `projects/<project>/` rather than mutating core assumptions unnecessarily.
-8. Run the verification checklists before adopting a new topology.
+6. Use `scripts/lead-launch-runner.sh <kickoff_artifact> <delivery_state>` when the lead needs to start a root runner handoff; the default launcher runs in a detached background `tmux` session.
+7. Install or export the repo-backed skills when you want Hermes profiles to consume the harness directly.
+8. Place project-specific deviations under `projects/<project>/` rather than mutating core assumptions unnecessarily.
+9. Run the verification checklists before adopting a new topology.
 
 ## Initial scope
 
 This scaffold now captures both the operating model and its agent-facing skill layer, with hooks for:
 
-- kanban-driven orchestration
+- artifact/state-driven orchestration
 - Telegram/home-channel notification rules
 - profile bootstrap automation
 - project overlays such as TREX

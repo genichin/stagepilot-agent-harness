@@ -2,16 +2,18 @@
 
 ## Scope
 
-This audit compares:
+This audit records the consolidation that made this repository the canonical skill catalog.
 
-- `stage-pilot/skills/` as the source inventory to import
-- `stagepilot-agent-harness/skills/` as the target source-of-truth catalog
+It compares:
+
+- the historical StagePilot workflow-skill inventory that was consolidated
+- `stagepilot-agent-harness/skills/` as the current source-of-truth catalog
 
 ## Inventory result
 
 | Source | Count | Notes |
 |---|---:|---|
-| `stage-pilot/skills/` | 21 | Full StagePilot workflow catalog |
+| Historical StagePilot workflow inventory | 21 | Full workflow catalog that was consolidated into this repo |
 | Existing harness-core skills | 3 | Topology, handoff, and harness umbrella skills |
 | Added operational tooling skills | 1 | `stagepilot-doctor-ops` |
 | `stagepilot-agent-harness/skills/` current total | 25 | 21 imported + 3 harness-core + 1 operational |

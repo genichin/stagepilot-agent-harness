@@ -14,7 +14,7 @@ This repository keeps StagePilot-related Hermes skills **inside the project** an
 The harness currently carries **25 skills**:
 
 - **3 harness-core skills** authored in this repository
-- **21 imported StagePilot workflow skills** from `stage-pilot/skills/`
+- **21 consolidated StagePilot workflow skills** now maintained in this repository
 - **1 operational tooling skill** for doctor execution and triage
 
 ### Harness-core skills

@@ -1,61 +1,59 @@
-# Template Path Resolution for `draft-req`
+# Template and Scaffold Resolution for `draft-req`
 
-Use this reference when StagePilot is installed in different physical locations across agents or repositories.
+Use this reference when the workflow skill must create REQ documents without assuming one legacy install path.
 
 ## Core rule
 
-Do **not** treat one physical path as the canonical template location for every agent.
+Do **not** treat one physical path such as `.stage-pilot/...` or `~/.stage-pilot/...` as the canonical template location for every agent.
 
 Instead:
 
-- treat `stage-pilot/templates/...` as the stable logical template path
-- resolve that logical path against the active workspace or agent installation
-- keep template source paths separate from generated target paths under `docs/srs/`
+- treat the repository as the source of truth for workflow behavior
+- resolve REQ scaffolding from the current repository or its project overlay first
+- keep scaffold source paths separate from generated target paths under `docs/srs/`
 
-## Logical template paths
+## What must be resolved
 
-For `draft-req`, the logical template sources are:
+For `draft-req`, the workflow needs two document scaffolds:
 
-- `stage-pilot/templates/srs/index.md`
-- `stage-pilot/templates/srs/req-template.md`
+- the REQ register/index scaffold
+- the individual REQ document scaffold
 
-These names are portable across Hermes Agent, GitHub Copilot, Claude, and similar environments. The physical path may differ.
+The exact physical path may differ by repository layout, overlay, or export method.
 
-## Physical path resolution order
+## Resolution order
 
-When resolving a logical template path, check candidates in this order:
+When resolving a REQ scaffold source, check candidates in this order:
 
-1. Workspace-local / subtree install: `.stage-pilot/templates/...`
-2. Hermes external install: `~/.stage-pilot/templates/...`
+1. A repo-local or project-overlay document scaffold source maintained with the harness
+2. A vendored or exported StagePilot document-template source that the current workspace actually provides
+3. If neither exists, the current repository's existing `docs/srs/` files as the local style exemplar for manual document creation
 
-Prefer the current workspace's installed copy over a user-level fallback.
+Prefer the current repository's own source over any user-level fallback.
 
 ## Source vs target distinction
 
 Keep these separate:
 
-- Template source: `stage-pilot/templates/...` resolved to one physical path above
+- Scaffold source: the repo-owned or workspace-provided document scaffold you read from
 - Generated targets: `docs/srs/index.md` and `docs/srs/<Type>/req-XXX_<slug>.md`
 
-Do not describe a generated `docs/srs/...` file as if it were the template source.
+Do not describe a generated `docs/srs/...` file as if it were the scaffold source.
 
 ## Ambiguity rule
 
 If multiple physical candidates exist:
 
-- prefer the highest-priority path in the resolution order above
-- do not silently mix sources from different installs
-- report which physical path was used when ambiguity could matter
+- prefer the highest-priority source in the resolution order above
+- do not silently mix scaffold files from different installs or exports
+- report which source you used when the choice could matter
 
 ## Durable pitfall
 
-A common portability mistake is to hardcode only one of these:
+A common portability mistake is to hardcode only one historical install shape.
 
-- `.stage-pilot/templates/...`
-- `~/.stage-pilot/templates/...`
+The durable pattern is:
 
-That works for one install shape but breaks on another machine or agent. The durable pattern is:
-
-- logical path in the skill
-- resolution rule in the workflow
-- generated target path documented separately
+- repo-backed workflow rules in the skill
+- repository/project-local scaffold resolution at runtime
+- generated target paths documented separately

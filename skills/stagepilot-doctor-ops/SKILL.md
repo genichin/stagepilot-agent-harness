@@ -30,18 +30,20 @@ Use this skill when you need to:
 
 ## Command resolution
 
-Prefer the most local available path in this order:
+Discover the actual doctor entrypoint instead of assuming one legacy install path. Prefer sources in this order:
 
-1. `python3 .stage-pilot/tools/stagepilot-doctor.py .`
-2. `bash .stage-pilot/tools/stagepilot.sh doctor .`
-3. An equivalent vendor/subtree path if the repository installed StagePilot under another local location.
+1. A repo-local helper script or wrapper shipped with the current workspace
+2. A project-provided vendor/subtree path documented by the repository
+3. An equivalent exported/bundled StagePilot doctor command available in the current environment
 
-Use these common variants:
+Do **not** invent `.stage-pilot/...` paths if the repository does not actually provide them.
+
+Use these command shapes after you discover the real path:
 
 ```bash
-python3 .stage-pilot/tools/stagepilot-doctor.py .
-python3 .stage-pilot/tools/stagepilot-doctor.py --strict-missing-docs .
-python3 .stage-pilot/tools/stagepilot-doctor.py --report artifacts/stagepilot-doctor.md .
+python3 <discovered-stagepilot-doctor.py> .
+python3 <discovered-stagepilot-doctor.py> --strict-missing-docs .
+python3 <discovered-stagepilot-doctor.py> --report artifacts/stagepilot-doctor.md .
 ```
 
 ## Core checks the doctor performs

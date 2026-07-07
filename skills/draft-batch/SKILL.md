@@ -41,24 +41,25 @@ This skill creates a new batch delivery unit from approved requirements selected
 - `docs/srs/index.md`
 - 대상 REQ 문서들
 - `docs/batches/index.md`
-- 배치 템플릿의 논리 경로
-  - `stage-pilot/templates/batches/batch-index.md`
-  - `stage-pilot/templates/batches/planning.md`
-  - `stage-pilot/templates/batches/design.md`
-  - `stage-pilot/templates/batches/implementation.md`
-  - `stage-pilot/templates/batches/verification.md`
-  - `stage-pilot/templates/batches/index.md` (`docs/batches/index.md` register 템플릿/기준)
+- 배치 문서 scaffold source
+  - batch index scaffold
+  - planning scaffold
+  - design scaffold
+  - implementation scaffold
+  - verification scaffold
+  - `docs/batches/index.md` register scaffold/기준
 
-## Template path resolution
+## Template and scaffold resolution
 
-- 배치 템플릿은 하나의 물리 경로만 고정하지 말고 `stage-pilot/templates/batches/...`를 논리 경로로 취급한다.
-- 물리 경로는 다음 순서로 해석한다.
-  1. `.stage-pilot/templates/batches/...`
-  2. `~/.stage-pilot/templates/batches/...`
-- 여러 후보가 동시에 존재하면 가장 우선순위가 높은 한 곳만 사용하고, 서로 다른 설치 위치의 템플릿을 섞지 않는다.
-- 이 resolution rule은 SKILL.md 본문에 그대로 적어 두는 편이 좋다. 배치 템플릿이 실제로 존재하는 현재 머신의 경로만 적어 두면 다른 PC나 다른 agent install shape에서 portability가 떨어진다.
-- 템플릿 source path와 생성 target path를 혼동하지 않는다.
-  - source: `stage-pilot/templates/batches/...`
+- 이 harness repo는 repo-backed source-of-truth이며, workflow skill은 특정 legacy install path(`.stage-pilot/...`, `~/.stage-pilot/...`)를 전제하지 않는다.
+- 배치 문서 scaffold는 다음 순서로 해석한다.
+  1. 현재 repository 또는 project overlay가 제공하는 batch scaffold source
+  2. 현재 workspace가 실제로 제공하는 vendored/exported StagePilot document-template source
+  3. 적절한 scaffold source가 없으면 `docs/batches/`의 기존 문서 형식을 local style exemplar로 삼아 직접 작성한다.
+- 여러 후보가 동시에 존재하면 가장 우선순위가 높은 한 곳만 사용하고, 서로 다른 source를 섞지 않는다.
+- 이 resolution rule은 SKILL.md 본문에 그대로 적어 두는 편이 좋다. 현재 머신의 한 install shape만 전제하면 다른 환경으로 옮길 때 portability가 떨어진다.
+- scaffold source path와 생성 target path를 혼동하지 않는다.
+  - source: repo/project-local scaffold source
   - target: `docs/batches/<BAT_ID>/...`, `docs/batches/index.md`
 
 # Core Rules
@@ -70,14 +71,14 @@ This skill creates a new batch delivery unit from approved requirements selected
 - `minor-change`는 profile 자체가 아니라 단일 저위험 REQ를 빠르게 `batch-lite`로 판단하는 입력 fast path다.
 - 입력이 정확히 1개의 `Approved` REQ이고 범위가 국소적이며 구조/인터페이스/런타임 흐름 변경이 없으면 `minor-change` fast path를 사용할 수 있다. 이 경우 최종 batch profile은 `batch-lite`로 기록한다.
 - `standard` batch는 생성 시 아래 파일을 함께 만든다.
-  - `index.md` ← `stage-pilot/templates/batches/batch-index.md`
-  - `planning.md` ← `stage-pilot/templates/batches/planning.md`
-  - `design.md` ← `stage-pilot/templates/batches/design.md`
-  - `implementation.md` ← `stage-pilot/templates/batches/implementation.md`
-  - `verification.md` ← `stage-pilot/templates/batches/verification.md`
+  - `index.md` ← batch index scaffold source
+  - `planning.md` ← planning scaffold source
+  - `design.md` ← design scaffold source
+  - `implementation.md` ← implementation scaffold source
+  - `verification.md` ← verification scaffold source
 - `batch-lite`는 생성 시 아래 파일만 먼저 만든다.
-  - `index.md` ← `stage-pilot/templates/batches/batch-index.md`
-  - `planning.md` ← `stage-pilot/templates/batches/planning.md`
+  - `index.md` ← batch index scaffold source
+  - `planning.md` ← planning scaffold source
 - `batch-lite`의 `implementation.md`와 `verification.md`는 해당 단계 진입 시 생성한다.
 - `batch-lite`라도 구조/인터페이스/흐름 영향이 생기면 `design.md`를 추가하고 사실상 standard depth로 다룬다.
 - REQ 묶음 선택이 아직 불안정하거나 대안 비교가 필요하면 batch를 생성하지 말고 먼저 `suggest-batch-reqs`로 되돌린다.
@@ -118,14 +119,14 @@ This skill creates a new batch delivery unit from approved requirements selected
 3. `minor-change`를 최종 profile 값처럼 기록하는 실수
    - `minor-change`는 fast path 이름일 뿐이고, persisted profile은 `batch-lite`다.
 
-4. `stage-pilot/templates/batches/index.md`와 `docs/batches/index.md`를 혼동하는 실수
-   - 전자는 register template/source이고 후자는 실제 저장소 target 파일이다.
+4. batch register scaffold source와 `docs/batches/index.md`를 혼동하는 실수
+   - 전자는 scaffold/source이고 후자는 실제 저장소 target 파일이다.
 
 5. `batch-lite`인데 구조 영향이 생겼는데도 design 문서를 만들지 않는 실수
    - planning의 `Design Gate`를 다시 보고 필요하면 `design.md`를 추가한다.
 
-6. 템플릿 경로를 한 설치 형태에만 고정하는 실수
-   - `.stage-pilot`, `~/.stage-pilot` 순서의 resolution rule을 따른다.
+6. scaffold source를 한 install shape에만 고정하는 실수
+   - repository/project-local source 우선, 없으면 workspace-provided vendored/exported source, 마지막으로 로컬 exemplar를 쓰는 resolution rule을 따른다.
 
 7. pack-level 문서를 빼먹는 실수
    - 외부 skill pack의 SKILL.md를 실제 수정해 버전이 바뀌면 `README.md` inventory와 `CHANGELOG.md`도 같은 턴에 함께 갱신한다.

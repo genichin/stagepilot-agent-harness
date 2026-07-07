@@ -54,21 +54,21 @@ This skill decides whether an incoming request should update an existing Discove
 - 저장소 문맥
 	- 현재 저장소 상태
 	- 저장소 현황 탐색 결과
-- 템플릿의 논리 경로
-	- `stage-pilot/templates/discovery/discovery.md`
-	- `stage-pilot/templates/discovery/index.md`
-	- `stage-pilot/templates/project-structure.md`
-	- `stage-pilot/templates/runtime-flows.md`
+- 문서 scaffold source
+	- discovery document scaffold
+	- discovery index/register scaffold
+	- baseline reference scaffolds (`docs/project-structure.md`, `docs/runtime-flows.md`)
 
-## Template path resolution
+## Template and scaffold resolution
 
-- 템플릿은 하나의 물리 경로만 고정하지 말고 `stage-pilot/templates/...`를 논리 경로로 취급한다.
-- 물리 경로는 다음 순서로 해석한다.
-	1. `.stage-pilot/templates/...`
-	2. `~/.stage-pilot/templates/...`
-- 여러 후보가 동시에 존재하면 가장 우선순위가 높은 한 곳만 사용하고, 서로 다른 설치 위치의 템플릿을 섞지 않는다.
-- 템플릿 source path와 생성 target path를 혼동하지 않는다.
-	- source: `stage-pilot/templates/...`
+- 이 harness repo는 repo-backed source-of-truth이며, workflow skill은 특정 legacy install path(`.stage-pilot/...`, `~/.stage-pilot/...`)를 전제하지 않는다.
+- discovery 문서 scaffold는 다음 순서로 해석한다.
+	1. 현재 repository 또는 project overlay가 제공하는 discovery/baseline scaffold source
+	2. 현재 workspace가 실제로 제공하는 vendored/exported StagePilot document-template source
+	3. 적절한 scaffold source가 없으면 `docs/discovery/`와 관련 baseline 문서의 기존 형식을 local style exemplar로 삼아 직접 작성한다.
+- 여러 후보가 동시에 존재하면 가장 우선순위가 높은 한 곳만 사용하고, 서로 다른 source를 섞지 않는다.
+- scaffold source path와 생성 target path를 혼동하지 않는다.
+	- source: repo/project-local scaffold source
 	- target: `docs/discovery/<DISCOVERY_ID>.md`, `docs/discovery/index.md`, 이후 필요 시 참조하는 `docs/project-structure.md`, `docs/runtime-flows.md`
 
 입력 해석 규칙:
@@ -167,9 +167,9 @@ This skill decides whether an incoming request should update an existing Discove
 ## 4. 문서 생성/갱신 규칙
 
 - 판정 결과가 `새 Discovery 생성`이면 새 파일을 `docs/discovery/<DISCOVERY_ID>.md` 경로로 생성한다.
-- `새 Discovery 생성`인 경우 `stage-pilot/templates/discovery/discovery.md`에 해당하는 실제 template source를 해석한 뒤 Discovery 문서를 생성한다.
-- `docs/discovery/index.md`가 없으면 `stage-pilot/templates/discovery/index.md`에 해당하는 실제 template source를 해석한 뒤 생성한다.
-- Discovery가 구조/런타임 baseline 갭을 직접 다루는 경우, `stage-pilot/templates/project-structure.md`와 `stage-pilot/templates/runtime-flows.md`를 이후 산출물의 논리 템플릿 참조로 취급한다.
+- `새 Discovery 생성`인 경우 적절한 discovery document scaffold source를 해석한 뒤 Discovery 문서를 생성한다. scaffold source가 없으면 현재 저장소의 로컬 형식에 맞춰 직접 작성한다.
+- `docs/discovery/index.md`가 없으면 적절한 discovery index scaffold source를 해석한 뒤 생성한다. scaffold source가 없으면 현재 저장소의 로컬 형식에 맞춰 직접 작성한다.
+- Discovery가 구조/런타임 baseline 갭을 직접 다루는 경우, repo/project-local baseline reference scaffold를 이후 산출물의 기준 참조로 취급한다.
 - `기존 Discovery 갱신`이면 대상 Discovery 문서를 갱신한다.
 - 동일 경로가 이미 있으면 덮어쓰지 말고 다음 ID를 재계산한다.
 - 불필요한 파일은 만들지 않는다.
@@ -251,7 +251,7 @@ This skill decides whether an incoming request should update an existing Discove
 ## `# 9. 파일 처리 결과`
 
 - 생성 결과와 최소 참조 문서를 채운다.
-- Discovery가 구조 또는 runtime baseline 갭을 다루면 `stage-pilot/templates/project-structure.md`와 `stage-pilot/templates/runtime-flows.md`를 참조 문서에 포함한다.
+- Discovery가 구조 또는 runtime baseline 갭을 다루면 repo/project-local baseline reference scaffold를 참조 문서에 포함한다.
 - 참조 문서가 없으면 `없음`이라고 쓴다.
 
 ## `# 10. 사용자 결정 필요 항목 요약`
@@ -368,7 +368,7 @@ Discovery 문서의 `# 3. 문제점의 요약` 중 `현재 상태`를 채우기 
 
 When the user asks to follow the StagePilot template exactly, or when generating a Discovery from a repository-local template, validate template fidelity before final reporting.
 
-- Compare the generated Discovery heading list against the resolved `stage-pilot/templates/discovery/discovery.md` heading list.
+- Compare the generated Discovery heading list against the resolved discovery scaffold heading list.
 - Missing headings must be zero.
 - Extra headings must be zero; do not add convenience headings such as `## 확정된 DECIDE` or `## 확정된 CONFIRM` unless the template itself contains them.
 - Preserve the template's top-level and subsection ordering even when some sections have no unresolved items.

@@ -13,10 +13,15 @@
 ## Execution notes
 - repo/workdir:
 - acceptance definition:
-- canonical board:
-- initial root kickoff card state: `ready`
-- assignee/owner target: `delivery-runner`
+- kickoff artifact path:
+- delivery state path:
+- launch command: `scripts/lead-launch-runner.sh <kickoff_artifact> <delivery_state>`
+- launch mode: detached background `tmux`
+- delivery owner target: `delivery-runner`
+- initial delivery state: `ready`
+- current stage: `kickoff`
 - expected reporting cadence / milestone:
 - escalation conditions:
-- queue note if another root kickoff is already `running` globally for this runner:
+- optional Telegram notify destination/thread:
+- optional queue note if another root kickoff is already active for this runner:
 - optional PR / delivery-unit note:

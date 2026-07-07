@@ -4,8 +4,10 @@
 
 - project-specific lead profile: `trex-dev-lead`
 - shared worker profiles: `delivery-runner`, `dev-impl`, `dev-qc`
-- kanban board: `trex-stagepilot`
-- kanban scope: root kickoff visibility and runner queueing only by default; downstream `delivery-runner -> dev-impl` and `delivery-runner -> dev-qc` handoffs stay non-kanban unless TREX explicitly overrides this.
+- root kickoff transport: artifact-backed handoff + delivery state record
+- root kickoff launch: lead explicitly starts `delivery-runner` in detached background `tmux` via `scripts/lead-launch-runner.sh`
+- optional Telegram notify: project-specific thread/message routing if TREX wants visibility
+- kanban: forbidden. Do not use board/card transport for kickoff, queueing, implementation, QC, or completion.
 
 ## Notes
 

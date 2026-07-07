@@ -101,5 +101,5 @@ This skill inspects the current state of Discovery, REQ, Batch, and Release docu
 # Validation
 
 - 다음 단계가 현재 문서 상태와 모순되지 않는지 확인한다.
-- 제안한 다음 skill이 실제 `.stage-pilot/skills/` 아래 존재하는지 확인한다.
+- 제안한 다음 skill이 현재 harness skill catalog(`skills/` tree 또는 그 export copy) 안에 실제로 존재하는지 확인한다.
 - baseline 문서가 필요한 상황에서 상태 요약 또는 추천 사유에 그 정보가 누락되지 않았는지 확인한다.

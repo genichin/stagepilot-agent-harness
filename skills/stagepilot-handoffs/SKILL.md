@@ -40,11 +40,13 @@ Must include:
 - escalation triggers
 - expected reporting cadence
 
-For kanban-backed delivery, also include:
-- canonical board name
-- initial root kickoff card state (normally `ready`)
-- explicit assignee/owner target (`delivery-runner`)
-- queue note when another root kickoff is already `running` globally for the same runner
+For artifact-backed delivery, also include:
+- kickoff artifact path
+- delivery state path
+- delivery owner target (`delivery-runner`)
+- initial delivery state (normally `ready`)
+- optional Telegram notify destination/thread
+- queue note when another root kickoff is already active for the same runner
 
 ### delivery-runner -> dev-impl
 Must include:
@@ -73,7 +75,7 @@ Must include:
 ### delivery-runner -> lead completion
 This handoff is optional by default.
 
-- The canonical required completion signal is a lead-visible `done` state on the active root kickoff plus persisted delivery artifacts/state that the lead can inspect during release review.
+- The canonical required completion signal is a lead-visible `done` delivery-state transition on the active root kickoff item plus persisted delivery artifacts/state that the lead can inspect during release review.
 - Use an explicit completion summary when it improves handoff clarity or when a project overlay requires it.
 
 If a completion summary is sent, it should include:

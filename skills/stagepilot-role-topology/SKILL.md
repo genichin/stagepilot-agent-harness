@@ -39,8 +39,8 @@ Use when you need to:
 - May break work into handovers, route tasks, collect evidence, and report status.
 - Must pause and escalate when authority is missing.
 - Must not silently redefine scope or acceptance criteria.
-- Should normally have at most one root kickoff card in `running` globally across boards unless a project overlay documents another concurrency model.
-- Uses kanban by default at the `lead -> delivery-runner` root boundary, while downstream impl/QC handoffs stay non-kanban by default unless an overlay opts into child-card routing.
+- Should normally have at most one root kickoff item in active execution globally unless a project overlay documents another concurrency model.
+- Uses artifact-backed root handoff at the `lead -> delivery-runner` boundary, with optional Telegram notification for visibility; downstream impl/QC handoffs stay transport-agnostic and must not use kanban.
 - Should organize Git delivery around one primary pull request per claimed root kickoff by default.
 - May open and update the kickoff PR during delivery, but does not own the default merge decision.
 - Owns the standard delivery chain through `confirm-req-implemented`, including default QC handoff before `confirm-batch-verification`.

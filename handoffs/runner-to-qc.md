@@ -1,6 +1,6 @@
 # delivery-runner -> dev-qc
 
-This handoff is transport-agnostic by default. It may be issued through ordinary runner-to-worker instructions, documents, or messages; kanban representation is optional unless the project overlay explicitly requires QC child cards.
+This handoff is transport-agnostic. It may be issued through ordinary runner-to-worker instructions, documents, or messages. Kanban representation is forbidden.
 
 ## Default trigger
 

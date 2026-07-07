@@ -45,21 +45,22 @@ Reference: source-of-truth migrations that remove an old local implementation an
 - 대상 Discovery 문서 본문
 - `docs/project-structure.md` (존재하는 경우)
 - `docs/runtime-flows.md` (존재하는 경우)
-- 템플릿의 논리 경로
-	- `stage-pilot/templates/srs/index.md`
-	- `stage-pilot/templates/srs/req-template.md`
+- 문서 scaffold source
+	- REQ register/index scaffold
+	- 개별 REQ 문서 scaffold
 
-## Template path resolution
+## Template and scaffold resolution
 
-- 템플릿은 하나의 물리 경로만 고정하지 말고 `stage-pilot/templates/...`를 논리 경로로 취급한다.
-- 물리 경로는 다음 순서로 해석한다.
-	1. `.stage-pilot/templates/...`
-	2. `~/.stage-pilot/templates/...`
-- 여러 후보가 동시에 존재하면 가장 우선순위가 높은 한 곳만 사용하고, 서로 다른 설치 위치의 템플릿을 섞지 않는다.
-- 템플릿 source path와 생성 target path를 혼동하지 않는다.
-	- source: `stage-pilot/templates/...`
+- 이 harness repo는 repo-backed source-of-truth이며, workflow skill은 특정 legacy install path(`.stage-pilot/...`, `~/.stage-pilot/...`)를 전제하지 않는다.
+- REQ 문서 scaffold는 다음 순서로 해석한다.
+	1. 현재 repository 또는 project overlay가 제공하는 REQ scaffold source
+	2. 현재 workspace가 실제로 제공하는 vendored/exported StagePilot document-template source
+	3. 적절한 scaffold source가 없으면 `docs/srs/`의 기존 문서 형식을 local style exemplar로 삼아 직접 작성한다.
+- 여러 후보가 동시에 존재하면 가장 우선순위가 높은 한 곳만 사용하고, 서로 다른 source를 섞지 않는다.
+- scaffold source path와 생성 target path를 혼동하지 않는다.
+	- source: repo/project-local scaffold source
 	- target: `docs/srs/index.md`, `docs/srs/<Type>/req-XXX_<slug>.md`
-- 어떤 physical path를 선택했는지 생성 전에 내부적으로 확정하고, 경로 해석이 애매하면 이를 보고한다.
+- 어떤 source를 선택했는지 생성 전에 내부적으로 확정하고, 해석이 애매하면 이를 보고한다.
 
 - Repository targets
 	- `docs/srs/index.md`
@@ -88,11 +89,10 @@ Reference: source-of-truth migrations that remove an old local implementation an
 - 여러 후보가 나오면 임의 선택하지 않고 사용자 확인이 필요하다고 보고한다.
 - `.stage-pilot/` 경로는 Discovery 문서 탐색 대상에서 제외한다.
 - template source는 단일 고정 경로로 가정하지 않는다.
-- `stage-pilot/templates/...`는 logical path로 취급하고, 실제 읽기 경로는 현재 workspace의 StagePilot 설치 형태에 맞게 해석한다.
-- template source를 읽을 때는 아래 순서로 후보를 확인한다.
-	1. `.stage-pilot/templates/...`
-	2. `~/.stage-pilot/templates/...`
-- 어떤 physical path를 선택했는지 생성 전에 내부적으로 확정하고, 경로 해석이 애매하면 이를 보고한다.
+- template/scaffold source는 단일 legacy install path로 가정하지 않는다.
+- source를 읽을 때는 현재 repository/project overlay의 scaffold source를 먼저 확인하고, 없으면 현재 workspace가 실제로 제공하는 vendored/exported source를 확인한다.
+- 둘 다 없으면 `docs/srs/`의 기존 로컬 형식을 기준으로 직접 작성한다.
+- 어떤 source를 선택했는지 생성 전에 내부적으로 확정하고, 해석이 애매하면 이를 보고한다.
 
 ## 3. REQ 분해 원칙
 
@@ -126,7 +126,7 @@ Reference: source-of-truth migrations that remove an old local implementation an
 
 ## 5. 문서 작성 규칙
 
-- `stage-pilot/templates/srs/req-template.md`에 해당하는 실제 template source를 해석한 뒤 문서를 만든다.
+- 적절한 REQ document scaffold source를 해석한 뒤 문서를 만든다. scaffold source가 없으면 현재 저장소의 로컬 형식에 맞춰 직접 작성한다.
 - 생성 대상 경로는 `docs/srs/<Type>/req-XXX_<slug>.md`다.
 - `Status` 기본값은 `Proposed`다.
 - `Intent`, `Requirement`, `Acceptance Criteria`, `Impacted Area`, `Notes`를 실제 문장으로 채운다.
@@ -193,7 +193,7 @@ Reference: source-of-truth migrations that remove an old local implementation an
    - source Discovery 범위에 baseline 보완이 포함되어 있으면, 그 갭을 다루는 REQ를 반드시 backlog에 포함한다.
 
 4. template source와 generated target path를 혼동하는 실수
-   - template source는 `stage-pilot/templates/...` logical path를 해석한 결과이고, 생성 대상은 `docs/srs/...`다.
+   - scaffold source는 repo/project-local 또는 workspace-provided source이고, 생성 대상은 `docs/srs/...`다.
 
 5. `docs/srs/index.md`를 갱신하지 않고 REQ 파일만 만드는 실수
    - `Next Requirement ID`, `Requirement Register`, `Recent Change Log Summary`를 함께 갱신해야 register가 깨지지 않는다.

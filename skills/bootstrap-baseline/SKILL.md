@@ -42,27 +42,22 @@ greenfield 저장소처럼 읽을 코드나 설정이 아직 없으면, 이 skil
 - `docs/discovery/`, `docs/srs/`, `docs/batches/`, `docs/releases/` 존재 여부
 - `.stage-pilot/bootstrap/baseline.yaml` 존재 여부
 - `docs/project-structure.md`, `docs/runtime-flows.md`, `docs/interface-contract.md`, `docs/data-model.md` 존재 여부
-- 템플릿의 논리 경로
-	- `stage-pilot/templates/bootstrap/baseline-seed.yaml`
-	- `stage-pilot/templates/discovery/index.md`
-	- `stage-pilot/templates/srs/index.md`
-	- `stage-pilot/templates/batches/index.md`
-	- `stage-pilot/templates/releases/index.md`
-	- `stage-pilot/templates/project-structure.md`
-	- `stage-pilot/templates/runtime-flows.md`
-	- `stage-pilot/templates/interface-contract.md`
-	- `stage-pilot/templates/data-model.md`
+- 문서 scaffold source
+	- baseline seed scaffold
+	- active index scaffolds (`docs/discovery/index.md`, `docs/srs/index.md`, `docs/batches/index.md`, `docs/releases/index.md`)
+	- cross-cutting baseline doc scaffolds (`docs/project-structure.md`, `docs/runtime-flows.md`, `docs/interface-contract.md`, `docs/data-model.md`)
 - 현재 시각 (KST)
 
-## Template path resolution
+## Template and scaffold resolution
 
-- 템플릿은 하나의 물리 경로만 고정하지 말고 `stage-pilot/templates/...`를 논리 경로로 취급한다.
-- 물리 경로는 다음 순서로 해석한다.
-	1. `.stage-pilot/templates/...`
-	2. `~/.stage-pilot/templates/...`
-- 여러 후보가 동시에 존재하면 가장 우선순위가 높은 한 곳만 사용하고, 서로 다른 설치 위치의 템플릿을 섞지 않는다.
-- 템플릿 source path와 생성 target path를 혼동하지 않는다.
-	- source: `stage-pilot/templates/...`
+- 이 harness repo는 repo-backed source-of-truth이며, workflow skill은 특정 legacy install path(`.stage-pilot/...`, `~/.stage-pilot/...`)를 전제하지 않는다.
+- bootstrap과 baseline 문서 scaffold는 다음 순서로 해석한다.
+	1. 현재 repository 또는 project overlay가 제공하는 bootstrap/baseline scaffold source
+	2. 현재 workspace가 실제로 제공하는 vendored/exported StagePilot document-template source
+	3. 적절한 scaffold source가 없으면 현재 저장소의 기존 docs 형식을 exemplar로 삼아 최소 seed와 문서를 직접 작성한다.
+- 여러 후보가 동시에 존재하면 가장 우선순위가 높은 한 곳만 사용하고, 서로 다른 source를 섞지 않는다.
+- scaffold source path와 생성 target path를 혼동하지 않는다.
+	- source: repo/project-local scaffold source
 	- target: `.stage-pilot/bootstrap/baseline.yaml`, `docs/discovery/index.md`, `docs/srs/index.md`, `docs/batches/index.md`, `docs/releases/index.md`, `docs/project-structure.md`, `docs/runtime-flows.md`, `docs/interface-contract.md`, `docs/data-model.md`
 
 # Core Rules
@@ -176,12 +171,12 @@ greenfield 저장소처럼 읽을 코드나 설정이 아직 없으면, 이 skil
 1. 저장소에서 active docs 루트와 baseline 파일 존재 여부를 확인한다.
 2. `.stage-pilot/bootstrap/baseline.yaml`이 없거나 핵심 필드가 비어 있으면 저장소 관찰로 채울 수 있는 값과 질문이 필요한 값을 분리한다.
 3. 저장소 관찰만으로 부족하면 최소 질문 세트를 사용해 사용자 선언 입력을 수집한다.
-4. `stage-pilot/templates/bootstrap/baseline-seed.yaml`에 해당하는 실제 template source를 해석한 뒤 `.stage-pilot/bootstrap/baseline.yaml`을 생성 또는 보강한다.
+4. 적절한 baseline seed scaffold source를 해석한 뒤 `.stage-pilot/bootstrap/baseline.yaml`을 생성 또는 보강한다. 적절한 source가 없으면 저장소 관찰과 사용자 답변을 바탕으로 최소 seed를 직접 작성한다.
 5. 누락된 디렉터리가 있으면 `docs/discovery`, `docs/srs`, `docs/batches`, `docs/releases`를 먼저 준비한다.
 6. 필요한 논리 템플릿 경로를 현재 환경의 물리 경로로 해석한 뒤, 누락된 index 파일을 각 템플릿으로 생성한다.
 7. seed 파일과 저장소 상태를 반영해 `docs/project-structure.md`, `docs/runtime-flows.md`, `docs/interface-contract.md`, `docs/data-model.md`를 생성 또는 보강한다.
 8. 이미 존재하는 파일은 보존하고, 필요한 경우에만 누락 복구 또는 seed 반영 사실을 결과에 기록한다.
-9. 저장소에 `.stage-pilot/tools/stagepilot-bootstrap-seed.py` 같은 bootstrap helper가 있으면 수동 파일 작성 전에 먼저 사용할 수 있는지 확인한다. helper를 사용할 때도 active index(`docs/discovery/index.md`, `docs/srs/index.md`, `docs/batches/index.md`, `docs/releases/index.md`)와 cross-cutting baseline 문서 4종(`docs/project-structure.md`, `docs/runtime-flows.md`, `docs/interface-contract.md`, `docs/data-model.md`)이 모두 실제로 생겼는지 별도로 확인한다.
+9. 저장소가 repo-local bootstrap helper를 제공하면 수동 파일 작성 전에 먼저 사용할 수 있는지 확인한다. helper를 사용할 때도 active index(`docs/discovery/index.md`, `docs/srs/index.md`, `docs/batches/index.md`, `docs/releases/index.md`)와 cross-cutting baseline 문서 4종(`docs/project-structure.md`, `docs/runtime-flows.md`, `docs/interface-contract.md`, `docs/data-model.md`)이 모두 실제로 생겼는지 별도로 확인한다.
 10. 완료 후 다음 단계로 `new-discovery`를 사용해 첫 real Discovery를 시작하도록 안내한다.
 
 # Output Expectations
@@ -198,7 +193,7 @@ greenfield 저장소처럼 읽을 코드나 설정이 아직 없으면, 이 skil
 - `.stage-pilot/bootstrap/baseline.yaml`의 필수 필드가 비어 있지 않은지 확인한다.
 - baseline 문서와 index에 남아 있는 플레이스홀더가 정말 사람 결정이 필요한 값인지 점검한다.
 - `{{...}}`, unresolved template variables, accidental Python/format escaping artifacts, and generic `PLACEHOLDER`/`TBD` markers are treated as validation issues unless they are intentionally documented as human decisions still needed.
-- 저장소에 `.stage-pilot/tools/stagepilot-doctor.py`가 있으면 완료 전에 실행하고, warning도 가능한 한 수정한 뒤 재실행한다.
+- 저장소가 repo-local doctor helper나 검증 스크립트를 제공하면 완료 전에 실행하고, warning도 가능한 한 수정한 뒤 재실행한다.
 - baseline 문서의 `Project Summary`, `Primary Domain`, `Tech Stack`, `Primary Runtime`와 공통 계약 정보가 seed 및 저장소 관찰과 모순되지 않는지 확인한다.
 - Discovery 문서를 생성하지 않았는지 확인한다.
 - 생성 후 가능하면 일반 repository smoke validation도 실행한다. 예: `python3 -m compileall .`, `python3 -m pytest -q -o 'addopts='`.

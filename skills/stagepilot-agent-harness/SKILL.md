@@ -6,7 +6,7 @@ author: Hermes Agent
 license: MIT
 metadata:
   hermes:
-    tags: [stagepilot, harness, multi-agent, roles, handoffs, kanban]
+    tags: [stagepilot, harness, multi-agent, roles, handoffs, artifacts]
     related_skills: [stagepilot-role-topology, stagepilot-handoffs, stagepilot-doctor-ops]
 ---
 
@@ -49,16 +49,16 @@ Do not use this skill as a substitute for project-specific implementation instru
 ### Default operating rules that should stay synchronized with core docs
 
 - After `confirm-req`, the lead may issue `lead -> delivery-runner` kickoff automatically unless the user explicitly asked to hold, defer, batch later, or wait for another confirmation point.
-- Kanban is required by default at the `lead -> delivery-runner` root boundary for visibility, queueing, and claim semantics.
-- Downstream `delivery-runner -> dev-impl` and `delivery-runner -> dev-qc` handoffs are transport-agnostic by default; they do not need child kanban cards unless the project overlay explicitly opts in.
-- Unless a project overlay documents otherwise, a `delivery-runner` should have at most one root kickoff card in `running` globally across project boards.
-- By default, one root kickoff card maps to one primary pull request. Any one-kickoff-to-many-PR split should be explicit in the project overlay or kickoff note.
+- The default `lead -> delivery-runner` root transport is a kickoff artifact plus delivery-state record; optional Telegram notification may mirror kickoff for visibility, but notification is not the source of truth.
+- Downstream `delivery-runner -> dev-impl` and `delivery-runner -> dev-qc` handoffs are transport-agnostic by default and must not use kanban.
+- Unless a project overlay documents otherwise, a `delivery-runner` should have at most one root kickoff item in active execution globally.
+- By default, one root kickoff item maps to one primary pull request. Any one-kickoff-to-many-PR split should be explicit in the project overlay or kickoff note.
 - The runner may open and update that PR during delivery, but the default merge decision belongs to the lead after hand-back at `confirm-req-implemented`, during release-stage review.
 - The standard delivery path includes an independent `delivery-runner -> dev-qc` handoff before `confirm-batch-verification`.
 - Only a low-risk `batch-lite` path may skip explicit QC handoff, and the skip reason plus residual risk must be documented in verification output.
 - The default QC retry cap is 3 verdict cycles for the same acceptance scope (initial review plus up to 2 rework/re-review loops).
 - If the same QC gap remains unresolved on the 3rd verdict, the runner must escalate to the lead instead of continuing an unbounded loop.
-- The canonical required completion signal is a lead-visible `done` state on the active root kickoff plus persisted delivery artifacts/state. A separate completion summary is optional by default.
+- The canonical required completion signal is a lead-visible `done` delivery-state transition on the active root kickoff item plus persisted delivery artifacts/state. A separate completion summary is optional by default.
 
 ### Harness layering
 
@@ -74,7 +74,7 @@ Use this decision rule:
 1. Read the relevant files in `docs/`, `roles/`, `handoffs/`, and `projects/<name>/` before changing the model.
 2. Keep role boundaries explicit; if a workflow blurs roles, document the exception and who is accountable.
 3. Prefer canonical handovers over informal narration.
-4. Keep blocked/unblocked/completed semantics externally inspectable through artifacts, state, or kanban.
+- 4. Keep blocked/unblocked/completed semantics externally inspectable through artifacts and state.
 5. When you update a core operating rule, update the matching skill source in this repository in the same change.
 
 ## Common Pitfalls
@@ -91,4 +91,4 @@ Use this decision rule:
 - [ ] Updated docs and updated skill text still say the same thing.
 - [ ] Role boundaries remain explicit for lead, runner, impl, and qc.
 - [ ] Handover or state changes are backed by artifacts, not only chat.
-- [ ] Root-kanban, PR-boundary, merge-ownership, QC-retry, and completion-signal rules still match the current core docs.
+- [ ] Root handoff, PR-boundary, merge-ownership, QC-retry, and completion-signal rules still match the current core docs.

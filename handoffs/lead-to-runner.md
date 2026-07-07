@@ -4,7 +4,9 @@
 
 This handoff is normally issued by the lead after `confirm-req` completes. A second explicit user kickoff is not required unless the user has asked to hold, defer, or wait for another approval point.
 
-When the harness uses kanban-backed delivery, emit this handoff as a root kickoff card on the project's canonical board.
+By default, emit this handoff as a persisted kickoff artifact plus a small delivery-state record. Optional Telegram notification may mirror the kickoff for visibility, but notification is not the source of truth.
+
+Artifact creation alone does not start execution. The lead must explicitly launch `delivery-runner` after writing the kickoff artifact/state. In this harness the default launch mechanism is the repo wrapper script `scripts/lead-launch-runner.sh`, which starts `hermes --profile delivery-runner` in a detached `tmux` session.
 
 ## Required fields
 
@@ -15,30 +17,48 @@ When the harness uses kanban-backed delivery, emit this handoff as a root kickof
 - explicit scope boundaries
 - escalation triggers
 - expected reporting cadence or milestones
+- kickoff artifact path
+- delivery state path
 
-If the handoff is emitted through kanban, also set:
+If the handoff is emitted through artifact-backed transport, also set:
 
-- canonical board name
-- root kickoff card state = `ready`
-- explicit assignee/owner target = `delivery-runner`
-- queue note if another root kickoff is already `running` for the same runner
+- delivery owner target = `delivery-runner`
+- initial delivery state = `ready`
+- current stage = `kickoff`
+- approved reference list in the state record
+
+Kanban transport is forbidden in this harness. Do not emit root kickoff cards or board-based queue state.
 
 ## Output expectation
 
 Runner should acknowledge current stage, next artifact, likely blockers, and first execution step.
 
-## Claim rule for kanban-backed kickoff
+## Launch rule
+
+- Default launch mode is background execution.
+- The lead should launch `delivery-runner` explicitly via `scripts/lead-launch-runner.sh <kickoff_artifact> <delivery_state>`.
+- The wrapper starts a detached `tmux` session and runs `hermes --profile delivery-runner chat -q ...` with the kickoff/state paths embedded in the prompt.
+- Detached background launch is the default because runner work is long-lived orchestration; the lead should not block its own session waiting for runner completion.
+- If the launch command is not issued, the kickoff remains only a persisted `ready` handoff and the runner has not started.
+
+## Claim rule for default artifact-backed kickoff
 
 The `delivery-runner` has *claimed* the kickoff only when all of the following are true:
 
-1. the runner is the explicit assignee/owner of the root kickoff card
-2. the root kickoff card moves from `ready` to `running`
-3. the runner posts an acknowledgment update covering current stage, next artifact, likely blockers, and first execution step
+1. the runner is the explicit owner target in the delivery state record
+2. the delivery state moves from `ready` to `claimed` or `in_progress`
+3. the runner updates the state or paired acknowledgment artifact with current stage, next artifact, likely blockers, and first execution step
 
-Reading a board card without those actions is not a valid claim.
+Reading the artifact without those actions is not a valid claim.
 
-## Queue / hold rule for additional kickoff cards
+## Optional Telegram notify rule
 
-- `delivery-runner` should claim at most one root kickoff card into `running` at a time globally across project boards unless the project overlay says otherwise.
-- Newly arrived kickoff cards for the same runner naturally wait by remaining in `ready`; they are not auto-claimed.
-- If the waiting order is ambiguous or materially risky, the runner should leave a lead-visible backlog note or request reprioritization instead of choosing silently.
+- Telegram notification is optional and secondary.
+- If used, it should include the kickoff artifact path, current stage, and next step.
+- The notification may point humans to the artifact/state record, but it does not replace them.
+
+## Queue / hold rule for additional kickoff items
+
+- `delivery-runner` should claim at most one root kickoff item into active execution at a time globally unless the project overlay says otherwise.
+- Newly arrived kickoff items for the same runner naturally wait by remaining in `ready`; they are not auto-claimed.
+- If the waiting order is ambiguous or materially risky, the runner should leave a lead-visible backlog note in the artifact/state trail or request reprioritization instead of choosing silently.

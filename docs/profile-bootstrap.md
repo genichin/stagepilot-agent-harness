@@ -20,7 +20,7 @@ Before creating profiles:
 1. Review `docs/role-topology.md`, `roles/`, and `handoffs/`.
 2. Decide the project name for the lead profile, using the pattern `<project>-dev-lead`.
 3. Decide the working directory each profile should default to.
-4. Define the project's canonical kanban board and write it into `projects/<name>/overlay.md`. The baseline naming rule is to derive the board from the lead-owned project name, typically `<project>-stagepilot`, unless the project documents a different board convention explicitly. By default this board governs only the `lead -> delivery-runner` root kickoff and runner queue visibility; `delivery-runner -> dev-impl` and `delivery-runner -> dev-qc` stay transport-agnostic unless the overlay explicitly opts into kanban child cards.
+4. Define the project's default root handoff artifact/state paths and write them into `projects/<name>/overlay.md`. If the project wants chat visibility, also record the optional Telegram notify destination/thread. Kanban is forbidden and must not be introduced by overlay.
 5. Confirm which skills should be exported from this repo into the target Hermes runtime.
 
 ## Baseline profile set
@@ -118,7 +118,7 @@ These are operating defaults, not hard laws.
 | Profile | Usually needed toolsets |
 |---|---|
 | `<project>-dev-lead` | `file`, `skills`, `todo`, plus project-dependent web/browser tools |
-| `delivery-runner` | `file`, `skills`, `todo`, `delegation`, `cronjob`, plus messaging/kanban if used |
+| `delivery-runner` | `file`, `skills`, `todo`, `delegation`, `cronjob`, plus messaging if used |
 | `dev-impl` | `file`, `terminal`, `code_execution`, `skills` |
 | `dev-qc` | `file`, `terminal`, `skills`, and verification-specific tools |
 
@@ -135,7 +135,7 @@ Create project-specific worker variants only when one of these is true:
 
 Otherwise prefer the shared baseline workers and keep the project-specific variation on the lead profile plus `projects/<name>/` overlay docs.
 
-For kanban-backed deployments of the harness, the project overlay should also record the canonical board name explicitly. Do not leave the board as an implicit chat convention. The default convention is `<project>-stagepilot`, based on the same project identifier used for the lead profile `<project>-dev-lead`, unless the overlay documents a different name.
+Do not define a kanban board for this harness. Board/card transport is out of policy.
 
 ## Verification checklist
 
