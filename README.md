@@ -41,12 +41,14 @@ stagepilot-agent-harness/
 
 | Role | Primary purpose | Must avoid |
 |---|---|---|
-| `lead` | Discovery, approval, prioritization, user collaboration | Getting trapped in long-running delivery execution |
-| `delivery-runner` | Orchestrate approved work through the delivery chain | Acting as product owner or silently changing scope |
+| `lead` | Discovery drafting, Discovery approval, REQ drafting, REQ approval, prioritization, user collaboration | Getting trapped in long-running delivery execution |
+| `delivery-runner` | Orchestrate approved work through the delivery chain after approved Discovery and approved REQ handoff | Acting as product owner or silently changing scope |
 | `dev-impl` | Implement approved scope and provide concrete evidence | Declaring acceptance by itself |
 | `dev-qc` | Independently verify acceptance, gaps, and regressions | Becoming a rubber stamp for implementation |
 
 ### Canonical handovers
+
+Discovery drafting, Discovery approval, REQ drafting, and REQ approval stay with `lead`. The `delivery-runner` starts only after the lead has produced and approved the Discovery and the REQ documents that will anchor the cycle.
 
 - `lead -> delivery-runner`
 - `delivery-runner -> dev-impl`
@@ -80,11 +82,13 @@ Repository policy: `skills/` should contain skill directories only. Catalog/audi
 ## Recommended Use
 
 1. Start from the docs in `docs/` and `roles/`.
-2. Copy or adapt the baseline role SOUL templates from `profiles/templates/`.
-3. Use the handover templates in `templates/` and the contracts in `handoffs/`.
-4. Install or export the repo-backed skills when you want Hermes profiles to consume the harness directly.
-5. Place project-specific deviations under `projects/<project>/` rather than mutating core assumptions unnecessarily.
-6. Run the verification checklists before adopting a new topology.
+2. Use `docs/profile-bootstrap.md` when turning the harness into real Hermes profiles.
+3. Use `docs/model-policy.md` for the default role-to-model mapping.
+4. Copy or adapt the baseline role SOUL templates from `profiles/templates/`.
+5. Use the handover templates in `templates/` and the contracts in `handoffs/`.
+6. Install or export the repo-backed skills when you want Hermes profiles to consume the harness directly.
+7. Place project-specific deviations under `projects/<project>/` rather than mutating core assumptions unnecessarily.
+8. Run the verification checklists before adopting a new topology.
 
 ## Initial scope
 

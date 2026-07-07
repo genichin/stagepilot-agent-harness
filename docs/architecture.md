@@ -42,6 +42,8 @@ The repository is the source of truth.
 ## Installation flow
 
 1. Edit the model in this repository.
-2. Validate repository structure and skill frontmatter.
-3. Export selected skills into a Hermes runtime directory when needed.
-4. Apply profile-specific overlays separately from the core harness.
+2. Use `docs/profile-bootstrap.md` to create or update the Hermes profiles.
+3. Use `docs/model-policy.md` to choose the default role-to-model mapping.
+4. Validate repository structure and skill frontmatter.
+5. Export selected skills into a Hermes runtime directory when needed.
+6. Apply profile-specific overlays separately from the core harness.
