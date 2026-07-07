@@ -21,6 +21,10 @@ This keeps user-facing work free from long-running execution while preserving re
 
 After `confirm-req`, the default assumption is not "wait for a second user kickoff." The lead may issue the `lead -> delivery-runner` handoff automatically once REQ approval is complete, as long as the user has not explicitly asked to hold, defer, batch later, or wait for additional confirmation. This keeps post-approval delivery non-blocking without transferring REQ ownership away from the lead.
 
+When the harness uses kanban-backed delivery, the default kanban requirement applies at the `lead -> delivery-runner` boundary: the lead emits a root kickoff card on the project's canonical board, and the runner claims that kickoff through the documented board claim semantics. Unless a project overlay explicitly defines a different concurrency model, a `delivery-runner` may have at most one root kickoff card in `running` globally across boards, with additional kickoff cards queued in `ready` until the runner becomes available.
+
+Downstream handoffs such as `delivery-runner -> dev-impl` and `delivery-runner -> dev-qc` are transport-agnostic by default. They do not need separate kanban cards unless the project overlay explicitly opts into child-card routing for implementation or QC work.
+
 ## Release boundary after delivery
 
 The `delivery-runner` owns the approved-scope delivery chain through batch grouping, batch creation, batch execution, verification approval, and REQ sync to `Implemented` where evidence exists.
@@ -28,6 +32,9 @@ The `delivery-runner` owns the approved-scope delivery chain through batch group
 - In the standard model, the runner-owned endpoint is `confirm-req-implemented`.
 - Before `confirm-batch-verification`, the standard path includes an independent `delivery-runner -> dev-qc` handoff.
 - Only a low-risk `batch-lite` path may skip explicit QC handoff, and that exception should be documented in verification output.
+- The default QC retry policy is a maximum of 3 verdict cycles for the same acceptance scope (initial review plus at most 2 rework/re-review loops).
+- If the same QC gap remains unresolved on the 3rd verdict, `delivery-runner` must escalate to `lead` rather than continuing delivery rework indefinitely.
+- REQ ambiguity, conflicting acceptance criteria, scope mismatch, or release-risk posture questions bypass the retry budget and escalate immediately.
 - After that point, release-family work returns to the lead: `draft-release`, `confirm-release`, and human-facing release planning are not runner-owned by default.
 - This keeps delivery automation fast while preserving release timing, rollout posture, and go/no-go decisions as lead-plus-human responsibilities.
 

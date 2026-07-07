@@ -1,7 +1,7 @@
 ---
 name: run-batch-delivery
 description: "Use when: orchestrating the full delivery chain for an existing batch, running /run-batch-delivery with a BAT ID, resuming an in-progress batch from the first incomplete delivery stage, or chaining planning, design, implementation, verification drafting, verification approval, and REQ implementation sync for one selected batch."
-version: 0.7.0
+version: 0.7.1
 author: Justin Ko
 license: private
 argument-hint: "예: bat-002 또는 docs/batches/bat-002_20260522_visioncfg-32-contract-migration"
@@ -95,6 +95,9 @@ This skill orchestrates the Delivery phase for one already-created batch by chai
 - verification evidence가 부족하거나 blocker가 있으면 `confirm-batch-verification`에서 멈춘다.
 - 기본 경로에서는 `confirm-batch-verification` 전에 `delivery-runner -> dev-qc` 독립 검토를 거친다.
 - 단일 저위험 `batch-lite`만 예외적으로 QC handoff를 생략할 수 있고, 이 경우 생략 사유와 residual risk를 verification 문서에 남긴다.
+- 동일 acceptance scope에 대한 QC verdict는 최대 3회(초기 QC 1회 + 재작업 후 재검토 2회)까지만 허용한다.
+- 같은 QC gap이 3번째 verdict에서도 unresolved이면 `delivery-runner -> lead` escalation을 강제하고, impl↔QC 루프를 계속 돌리지 않는다.
+- REQ ambiguity, conflicting acceptance criteria, scope mismatch, release-risk posture, 또는 runner authority 밖 판단이 원인이면 retry budget을 쓰지 말고 즉시 escalation한다.
 - REQ acceptance criteria와 evidence 연결이 불충분하면 `confirm-req-implemented`에서 멈춘다.
 - release 문서 생성과 release 승인까지 자동으로 넘기지 않는다. 이 skill의 종료점은 delivery phase 완료 직전 또는 완료 직후 상태 보고다.
 
@@ -121,12 +124,14 @@ This skill orchestrates the Delivery phase for one already-created batch by chai
 7. `run-batch-implementation` 후에는 구현 변경, execution log, validation, remaining risks가 기록됐는지 확인한다.
 8. `draft-batch-verification` 후에는 REQ acceptance criteria와 evidence mapping, blocking issues, baseline 동기화 evidence가 필요한 경우 그 항목이 채워졌는지 확인한다.
 9. 기본 경로라면 `confirm-batch-verification` 전에 `delivery-runner -> dev-qc` handoff를 수행하고 QC verdict를 반영한다. 단일 저위험 `batch-lite` 예외만 QC 생략 사유와 residual risk를 남긴 뒤 다음 단계로 간다.
-10. `confirm-batch-verification` 성공 시 batch가 `release-candidate`로 전환됐는지 확인한다. 실패 시 blocker를 보고하고 멈춘다.
-11. `confirm-req-implemented`를 실행해 포함 REQ 중 evidence가 충분한 항목만 `Implemented`로 동기화한다. 부족한 항목은 blocker와 함께 남긴다.
-12. delivery chain 종료 후 결과를 아래 중 하나로 보고한다.
+10. QC가 gap을 반환하면 먼저 원인을 `implementation defect` / `evidence gap` / `REQ ambiguity or governance issue`로 분류한다. 구현 결함과 evidence gap만 재작업 대상으로 돌리고, governance/REQ 문제는 즉시 `lead`로 escalate한다.
+11. 같은 acceptance scope의 QC verdict가 3번째에도 실패하면 `Stopped at verification` + mandatory escalation으로 보고하고, 추가 재작업 루프를 계속하지 않는다.
+12. `confirm-batch-verification` 성공 시 batch가 `release-candidate`로 전환됐는지 확인한다. 실패 시 blocker를 보고하고 멈춘다.
+13. `confirm-req-implemented`를 실행해 포함 REQ 중 evidence가 충분한 항목만 `Implemented`로 동기화한다. 부족한 항목은 blocker와 함께 남긴다.
+14. delivery chain 종료 후 결과를 아래 중 하나로 보고한다.
     - `Stopped at <stage>` + blocker
     - `Delivery chain complete through REQ sync`
-13. delivery chain이 성공적으로 끝났으면 다음 단계로 `draft-release`를 추천하되, 자동 실행하지는 않는다.
+15. delivery chain이 성공적으로 끝났으면 다음 단계로 `draft-release`를 추천하되, 자동 실행하지는 않는다.
 
 # Output Expectations
 
@@ -168,6 +173,8 @@ This skill orchestrates the Delivery phase for one already-created batch by chai
 - [ ] `batch-lite` design 생략은 `Design Gate`와 실제 영향 근거로 설명된다.
 - [ ] 기본 경로에서는 `confirm-batch-verification` 전에 QC handoff와 verdict가 반영되었다.
 - [ ] QC handoff를 생략한 경우 단일 저위험 `batch-lite` 예외이며 생략 사유와 residual risk가 기록되었다.
+- [ ] 같은 acceptance scope에서 QC verdict가 3회를 넘기지 않았고, 3번째 unresolved verdict는 lead escalation으로 전환되었다.
+- [ ] REQ ambiguity / scope mismatch / release-risk posture 문제는 retry budget 소비 대신 즉시 escalation되었다.
 - [ ] `confirm-batch-verification`은 blocker 없는 evidence 상태에서만 통과했다.
 - [ ] `confirm-req-implemented`는 evidence가 연결된 REQ만 전환했다.
 - [ ] stage별 실행 결과와 중단/완료 상태가 보고되었다.

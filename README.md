@@ -50,9 +50,15 @@ stagepilot-agent-harness/
 
 Discovery drafting, Discovery approval, REQ drafting, and REQ approval stay with `lead`. The `delivery-runner` starts only after the lead has produced and approved the Discovery and the REQ documents that will anchor the cycle. Once that handoff exists, the runner owns batch grouping and delivery slicing within the already-approved scope so the lead can stay available for user conversation and new Discovery work.
 
-`confirm-req` completion does not require a fresh user kickoff by default. Unless the user has explicitly asked to hold, defer, or wait for another condition, the lead may automatically issue the `lead -> delivery-runner` handoff after REQ approval. In other words: approved REQ enables default auto-kickoff by the lead, while explicit user hold instructions override that default.
+`confirm-req` completion does not require a fresh user kickoff by default. Unless the user has explicitly asked to hold, defer, or wait for another condition, the lead may automatically issue the `lead -> delivery-runner` handoff after REQ approval. In other words: approved REQ enables default auto-kickoff by the lead, while explicit user hold instructions override that default. When the harness uses kanban-backed delivery, this kickoff should be emitted on the project's canonical board recorded in `projects/<name>/overlay.md`; the default naming rule is to derive that board from the lead-owned project identifier (typically `<project>-stagepilot`) unless the overlay documents a different convention.
 
-By default, delivery should also include an independent `delivery-runner -> dev-qc` handoff before `confirm-batch-verification`. A low-risk `batch-lite` path may skip explicit QC review only when the skip reason and residual risk are documented in the verification artifact.
+For kanban-backed delivery, the `lead -> delivery-runner` handoff is considered *claimed* only when the root kickoff card is explicitly assigned to `delivery-runner`, the card moves from `ready` to `running`, and the runner posts an initial acknowledgment update. Silent observation of a board card is not an accepted handoff claim.
+
+Unless a project overlay explicitly defines a different concurrency model, the default rule is one active root delivery kickoff card in `running` per `delivery-runner` globally across boards. Additional kickoff cards remain queued in `ready` until the runner becomes available, even if they belong to a different project board, and queue ambiguity or backlog pressure should be surfaced back to the lead instead of being resolved silently.
+
+Kanban is required by default for root kickoff visibility, queueing, and claim semantics at the `lead -> delivery-runner` boundary. Downstream handoffs such as `delivery-runner -> dev-impl` and `delivery-runner -> dev-qc` are transport-agnostic by default and do not need to be represented as kanban cards unless a project overlay explicitly opts into that model.
+
+By default, delivery should also include an independent `delivery-runner -> dev-qc` handoff before `confirm-batch-verification`. A low-risk `batch-lite` path may skip explicit QC review only when the skip reason and residual risk are documented in the verification artifact. The default QC retry policy is at most 3 verdict cycles for the same acceptance scope (initial review + up to 2 rework/re-review loops). If the same QC gap is still unresolved on the 3rd verdict, the runner must escalate to the lead instead of continuing an unbounded impl↔QC loop.
 
 - `lead -> delivery-runner`
 - `delivery-runner -> dev-impl`
@@ -128,6 +134,9 @@ Notes:
 - `dev-impl` and `dev-qc` are intentionally distinct; QC is not an extension of implementation.
 - The standard path includes QC before `confirm-batch-verification`.
 - Only a low-risk `batch-lite` path may skip explicit QC handoff, and that waiver must be documented with skip reason and residual risk in verification output.
+- The default QC retry cap is 3 verdicts for the same acceptance scope; a 3rd failed verdict requires `delivery-runner -> lead` escalation.
+- Escalate immediately instead of spending retry budget when the issue is caused by REQ ambiguity, conflicting acceptance criteria, scope mismatch, release-risk posture, or any decision outside runner authority.
+- Waiver is not allowed for core functional failures, security/privacy issues, data integrity risks, or other unresolved blocking defects.
 - Release-family work resumes with the lead after runner-managed delivery reaches `confirm-req-implemented`.
 
 ## Skill strategy

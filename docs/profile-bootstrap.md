@@ -20,7 +20,8 @@ Before creating profiles:
 1. Review `docs/role-topology.md`, `roles/`, and `handoffs/`.
 2. Decide the project name for the lead profile, using the pattern `<project>-dev-lead`.
 3. Decide the working directory each profile should default to.
-4. Confirm which skills should be exported from this repo into the target Hermes runtime.
+4. Define the project's canonical kanban board and write it into `projects/<name>/overlay.md`. The baseline naming rule is to derive the board from the lead-owned project name, typically `<project>-stagepilot`, unless the project documents a different board convention explicitly. By default this board governs only the `lead -> delivery-runner` root kickoff and runner queue visibility; `delivery-runner -> dev-impl` and `delivery-runner -> dev-qc` stay transport-agnostic unless the overlay explicitly opts into kanban child cards.
+5. Confirm which skills should be exported from this repo into the target Hermes runtime.
 
 ## Baseline profile set
 
@@ -133,6 +134,8 @@ Create project-specific worker variants only when one of these is true:
 - compliance or isolation rules prevent shared workers
 
 Otherwise prefer the shared baseline workers and keep the project-specific variation on the lead profile plus `projects/<name>/` overlay docs.
+
+For kanban-backed deployments of the harness, the project overlay should also record the canonical board name explicitly. Do not leave the board as an implicit chat convention. The default convention is `<project>-stagepilot`, based on the same project identifier used for the lead profile `<project>-dev-lead`, unless the overlay documents a different name.
 
 ## Verification checklist
 

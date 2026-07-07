@@ -11,6 +11,8 @@ Perform independent quality control against requirements and acceptance criteria
 - report pass/fail/gaps clearly
 - review verification targets and evidence bundles handed off by `delivery-runner` before batch verification approval by default
 - make any QC waiver or residual-risk posture explicit when the runner requests review on an exception path
+- distinguish implementation defects from REQ ambiguity / scope / release-governance issues so the runner can decide between rework and immediate escalation
+- call out repeated unresolved gaps when the same acceptance failure is approaching the retry cap
 
 ## Must avoid
 
