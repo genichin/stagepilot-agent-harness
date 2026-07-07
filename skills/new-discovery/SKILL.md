@@ -336,7 +336,7 @@ Discovery 문서의 `# 3. 문제점의 요약` 중 `현재 상태`를 채우기 
 - `## Discovery 목록`에는 새 행을 추가한다.
 - 형식은 아래와 같다.
 
-`| <DISCOVERY_ID> | <YYYYMMDD> | <ISSUE_NAME> | [Discovery](./<DISCOVERY_ID>.md) | draft |`
+`| <DISCOVERY_ID> | <YYYYMMDD> | <ISSUE_NAME> | Discovery: ./<DISCOVERY_ID>.md | draft |`
 
 - 테이블 구조 자체는 바꾸지 않는다.
 - `기존 Discovery 갱신`으로 판정된 경우 `docs/discovery/index.md`에 새 행을 추가하지 않는다.

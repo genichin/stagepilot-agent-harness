@@ -23,7 +23,7 @@ The assigned worker has actively claimed the task/card and started execution. Fo
 A worker cannot proceed without an external dependency, approval, or clarified decision.
 
 ### done
-The assigned unit of work has completed its expected execution path and produced evidence.
+The assigned unit of work has completed its expected execution path and produced evidence. For a `lead -> delivery-runner` root kickoff card, `done` is the required completion signal that returns active ownership to the lead for release-stage review.
 
 ### archived
 The task is closed for active routing and retained only for history.
@@ -31,5 +31,7 @@ The task is closed for active routing and retained only for history.
 ## Notification guidance
 
 At minimum, `blocked` and `done` should be considered lead-visible state changes.
+
+For runner-owned delivery completion, the lead-visible `done` state is mandatory; a separate completion notification/summary is optional unless a project overlay explicitly requires one.
 
 Queued kickoff buildup, uncertain ordering, or reprioritization need should also be surfaced to the lead when it affects delivery flow.

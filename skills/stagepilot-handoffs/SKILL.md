@@ -30,11 +30,21 @@ Use when you need to:
 
 ### lead -> delivery-runner
 Must include:
+- approved Discovery reference
+- approved REQ reference
 - objective
 - scope and non-goals
 - acceptance definition
+- repo/workdir context
 - constraints or approvals already granted
+- escalation triggers
 - expected reporting cadence
+
+For kanban-backed delivery, also include:
+- canonical board name
+- initial root kickoff card state (normally `ready`)
+- explicit assignee/owner target (`delivery-runner`)
+- queue note when another root kickoff is already `running` globally for the same runner
 
 ### delivery-runner -> dev-impl
 Must include:
@@ -61,7 +71,12 @@ Must include:
 - impact of delay or wrong choice
 
 ### delivery-runner -> lead completion
-Must include:
+This handoff is optional by default.
+
+- The canonical required completion signal is a lead-visible `done` state on the active root kickoff plus persisted delivery artifacts/state that the lead can inspect during release review.
+- Use an explicit completion summary when it improves handoff clarity or when a project overlay requires it.
+
+If a completion summary is sent, it should include:
 - original objective
 - delivered result
 - evidence summary
@@ -75,6 +90,7 @@ Must include:
 3. Separate facts, evidence, and recommendations.
 4. If a handover changes authority, treat it as escalation.
 5. If a handover cannot be audited later, it is not good enough.
+6. Do not silently convert an optional completion summary into a mandatory completion gate unless the project overlay explicitly says so.
 
 ## Common Pitfalls
 
@@ -82,10 +98,12 @@ Must include:
 2. **Missing acceptance fields.** Receivers cannot decide done-ness from vibes.
 3. **Combining escalation with a silent decision.** If authority is needed, surface it directly.
 4. **QC requests without risk framing.** This weakens independent verification.
+5. **Treating completion summary as the only completion signal.** The default required signal is the root kickoff reaching lead-visible `done` with inspectable delivery artifacts.
 
 ## Verification Checklist
 
 - [ ] The receiving role could act without rereading the whole conversation.
 - [ ] Objective, scope, evidence, and decision points are explicit.
 - [ ] Escalations clearly state what authority is being requested.
-- [ ] Completion summaries separate results from residual risk.
+- [ ] Any completion summary separates results from residual risk.
+- [ ] Optional completion-summary behavior is not mistaken for the canonical required completion signal.

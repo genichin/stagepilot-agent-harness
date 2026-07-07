@@ -8,7 +8,7 @@ This handoff is the normal path before `confirm-batch-verification`.
 
 - The runner should request QC review once implementation evidence and verification drafting are ready.
 - A low-risk `batch-lite` exception may skip the handoff only if the runner documents the skip reason and residual risk in the verification artifact.
-- The default retry budget for the same acceptance scope is 3 QC verdict cycles total. If the same gap is still unresolved on the 3rd verdict, the next action is `delivery-runner -> lead` escalation rather than another blind rework loop.
+- The default retry budget for the same acceptance scope is 3 QC verdict cycles total; if the same gap is still unresolved on the 3rd verdict, escalate to `lead` rather than looping again.
 
 ## Required fields
 

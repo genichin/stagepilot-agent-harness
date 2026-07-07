@@ -30,7 +30,8 @@ Use when you need to:
 ### Lead
 - Owns discovery, approval, prioritization, and user-facing tradeoffs.
 - Should remain the control tower, not the delivery worker.
-- Must receive escalations for ambiguity, blocked decisions, or completion summaries needing human judgment.
+- Must receive escalations for ambiguity, blocked decisions, or optional completion summaries needing human judgment.
+- Owns the default merge decision for kickoff-aligned pull requests after runner hand-back at `confirm-req-implemented`.
 
 ### Delivery-runner
 - Owns execution choreography across the delivery chain.
@@ -38,6 +39,12 @@ Use when you need to:
 - May break work into handovers, route tasks, collect evidence, and report status.
 - Must pause and escalate when authority is missing.
 - Must not silently redefine scope or acceptance criteria.
+- Should normally have at most one root kickoff card in `running` globally across boards unless a project overlay documents another concurrency model.
+- Uses kanban by default at the `lead -> delivery-runner` root boundary, while downstream impl/QC handoffs stay non-kanban by default unless an overlay opts into child-card routing.
+- Should organize Git delivery around one primary pull request per claimed root kickoff by default.
+- May open and update the kickoff PR during delivery, but does not own the default merge decision.
+- Owns the standard delivery chain through `confirm-req-implemented`, including default QC handoff before `confirm-batch-verification`.
+- Must enforce the default QC retry cap of 3 verdict cycles for the same acceptance scope, then escalate instead of looping indefinitely.
 
 ### Dev-impl
 - Owns changes to code/config/artifacts within approved scope.
@@ -56,7 +63,9 @@ Escalate to `lead` when:
 - a decision changes scope, priority, acceptance, or release readiness;
 - the runner cannot resolve a blocker with existing authority;
 - implementation findings invalidate the kickoff assumptions;
-- QC finds a gap that needs product-level tradeoff.
+- QC finds a gap that needs product-level tradeoff;
+- the same QC gap remains unresolved on the 3rd verdict for the same acceptance scope;
+- merge timing, release posture, or go/no-go judgment is needed.
 
 ## Common Pitfalls
 
@@ -64,6 +73,7 @@ Escalate to `lead` when:
 2. **Lead staying inside implementation loops too long.** This reduces leverage and muddies ownership.
 3. **QC reviewing its own implementation path.** Keep independence visible.
 4. **Using titles without contracts.** A role name is meaningless if its input/output expectations are not explicit.
+5. **Treating runner completion as automatic merge authorization.** Merge timing belongs to lead-owned release judgment by default.
 
 ## Verification Checklist
 
@@ -71,3 +81,4 @@ Escalate to `lead` when:
 - [ ] Escalation rules route authority questions back to lead.
 - [ ] Impl and QC remain separable in both responsibility and evidence.
 - [ ] The topology can be explained without relying on unstated tribal knowledge.
+- [ ] Root concurrency, PR boundary, merge ownership, and QC retry-cap rules are explicit rather than implied.

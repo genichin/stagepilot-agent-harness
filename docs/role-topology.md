@@ -19,24 +19,32 @@ This keeps user-facing work free from long-running execution while preserving re
 
 ## Post-REQ kickoff rule
 
-After `confirm-req`, the default assumption is not "wait for a second user kickoff." The lead may issue the `lead -> delivery-runner` handoff automatically once REQ approval is complete, as long as the user has not explicitly asked to hold, defer, batch later, or wait for additional confirmation. This keeps post-approval delivery non-blocking without transferring REQ ownership away from the lead.
+Default post-REQ behavior:
 
-When the harness uses kanban-backed delivery, the default kanban requirement applies at the `lead -> delivery-runner` boundary: the lead emits a root kickoff card on the project's canonical board, and the runner claims that kickoff through the documented board claim semantics. Unless a project overlay explicitly defines a different concurrency model, a `delivery-runner` may have at most one root kickoff card in `running` globally across boards, with additional kickoff cards queued in `ready` until the runner becomes available.
-
-Downstream handoffs such as `delivery-runner -> dev-impl` and `delivery-runner -> dev-qc` are transport-agnostic by default. They do not need separate kanban cards unless the project overlay explicitly opts into child-card routing for implementation or QC work.
+- `confirm-req` does not wait for a second user kickoff by default.
+- The lead may issue `lead -> delivery-runner` automatically once REQ approval completes, unless the user explicitly asked to hold, defer, batch later, or wait.
+- For kanban-backed delivery, this handoff is a root kickoff card on the project's canonical board.
+- The runner claims that kickoff only through the documented claim semantics.
+- Default concurrency is one root kickoff card in `running` per runner globally across boards.
+- Downstream impl/QC handoffs stay transport-agnostic unless a project overlay opts into child-card routing.
+- One root kickoff card maps to one primary PR by default.
+- The runner may open/update that PR, but the default merge decision belongs to the lead after `confirm-req-implemented`.
 
 ## Release boundary after delivery
 
 The `delivery-runner` owns the approved-scope delivery chain through batch grouping, batch creation, batch execution, verification approval, and REQ sync to `Implemented` where evidence exists.
 
-- In the standard model, the runner-owned endpoint is `confirm-req-implemented`.
-- Before `confirm-batch-verification`, the standard path includes an independent `delivery-runner -> dev-qc` handoff.
-- Only a low-risk `batch-lite` path may skip explicit QC handoff, and that exception should be documented in verification output.
-- The default QC retry policy is a maximum of 3 verdict cycles for the same acceptance scope (initial review plus at most 2 rework/re-review loops).
-- If the same QC gap remains unresolved on the 3rd verdict, `delivery-runner` must escalate to `lead` rather than continuing delivery rework indefinitely.
-- REQ ambiguity, conflicting acceptance criteria, scope mismatch, or release-risk posture questions bypass the retry budget and escalate immediately.
-- After that point, release-family work returns to the lead: `draft-release`, `confirm-release`, and human-facing release planning are not runner-owned by default.
-- This keeps delivery automation fast while preserving release timing, rollout posture, and go/no-go decisions as lead-plus-human responsibilities.
+Standard delivery/release boundary:
+
+- Runner-owned endpoint: `confirm-req-implemented`.
+- Standard QC path: `delivery-runner -> dev-qc` before `confirm-batch-verification`.
+- QC skip: allowed only for low-risk `batch-lite`, with skip reason and residual risk documented.
+- QC retry cap: 3 verdict cycles for the same acceptance scope.
+- 3rd unresolved verdict: escalate to `lead`.
+- Immediate escalation instead of retry budget: REQ ambiguity, conflicting acceptance criteria, scope mismatch, or release-risk posture.
+- Required completion signal: lead-visible `done` on the active root kickoff.
+- Optional artifact: separate runner-to-lead completion summary.
+- After `confirm-req-implemented`, release-family work returns to `lead`.
 
 ## Exceptions
 

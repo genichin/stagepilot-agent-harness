@@ -46,6 +46,20 @@ Do not use this skill as a substitute for project-specific implementation instru
 | `dev-impl` | implementation, evidence, local validation | acceptance sign-off |
 | `dev-qc` | independent verification, defect surfacing, release confidence | implementation ownership |
 
+### Default operating rules that should stay synchronized with core docs
+
+- After `confirm-req`, the lead may issue `lead -> delivery-runner` kickoff automatically unless the user explicitly asked to hold, defer, batch later, or wait for another confirmation point.
+- Kanban is required by default at the `lead -> delivery-runner` root boundary for visibility, queueing, and claim semantics.
+- Downstream `delivery-runner -> dev-impl` and `delivery-runner -> dev-qc` handoffs are transport-agnostic by default; they do not need child kanban cards unless the project overlay explicitly opts in.
+- Unless a project overlay documents otherwise, a `delivery-runner` should have at most one root kickoff card in `running` globally across project boards.
+- By default, one root kickoff card maps to one primary pull request. Any one-kickoff-to-many-PR split should be explicit in the project overlay or kickoff note.
+- The runner may open and update that PR during delivery, but the default merge decision belongs to the lead after hand-back at `confirm-req-implemented`, during release-stage review.
+- The standard delivery path includes an independent `delivery-runner -> dev-qc` handoff before `confirm-batch-verification`.
+- Only a low-risk `batch-lite` path may skip explicit QC handoff, and the skip reason plus residual risk must be documented in verification output.
+- The default QC retry cap is 3 verdict cycles for the same acceptance scope (initial review plus up to 2 rework/re-review loops).
+- If the same QC gap remains unresolved on the 3rd verdict, the runner must escalate to the lead instead of continuing an unbounded loop.
+- The canonical required completion signal is a lead-visible `done` state on the active root kickoff plus persisted delivery artifacts/state. A separate completion summary is optional by default.
+
 ### Harness layering
 
 Use this decision rule:
@@ -69,6 +83,7 @@ Use this decision rule:
 2. **Stuffing project-specific policy into core harness language.** Put those rules under `projects/<name>/` unless they truly generalize.
 3. **Letting the runner become a shadow lead.** Runner may choose delivery grouping inside approved scope, but does not redefine scope, priority, or approvals.
 4. **Collapsing impl and QC into one worker mindset.** Independent verification is part of the operating model, not optional ceremony.
+5. **Updating core docs without updating the corresponding skills/templates.** This creates execution drift between human docs and runtime guidance.
 
 ## Verification Checklist
 
@@ -76,3 +91,4 @@ Use this decision rule:
 - [ ] Updated docs and updated skill text still say the same thing.
 - [ ] Role boundaries remain explicit for lead, runner, impl, and qc.
 - [ ] Handover or state changes are backed by artifacts, not only chat.
+- [ ] Root-kanban, PR-boundary, merge-ownership, QC-retry, and completion-signal rules still match the current core docs.

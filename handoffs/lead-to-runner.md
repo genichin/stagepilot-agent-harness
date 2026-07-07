@@ -4,7 +4,7 @@
 
 This handoff is normally issued by the lead after `confirm-req` completes. A second explicit user kickoff is not required unless the user has asked to hold, defer, or wait for another approval point.
 
-When the harness uses kanban-backed delivery, the lead should emit this handoff as a root kickoff card on the project's canonical board.
+When the harness uses kanban-backed delivery, emit this handoff as a root kickoff card on the project's canonical board.
 
 ## Required fields
 
@@ -21,8 +21,7 @@ If the handoff is emitted through kanban, also set:
 - canonical board name
 - root kickoff card state = `ready`
 - explicit assignee/owner target = `delivery-runner`
-
-If another root kickoff card is already `running` anywhere for the same `delivery-runner`, the newly created kickoff should remain queued in `ready` until the runner becomes available or the lead explicitly reprioritizes the queue.
+- queue note if another root kickoff is already `running` for the same runner
 
 ## Output expectation
 
