@@ -1,0 +1,72 @@
+---
+name: stagepilot-role-topology
+description: Use when defining or reviewing ownership boundaries, escalation points, and scope limits across the StagePilot lead, delivery-runner, dev-impl, and dev-qc roles.
+version: 1.0.0
+author: Hermes Agent
+license: MIT
+metadata:
+  hermes:
+    tags: [stagepilot, role-topology, lead, delivery-runner, dev-impl, dev-qc]
+    related_skills: [stagepilot-agent-harness, stagepilot-handoffs]
+---
+
+# StagePilot Role Topology
+
+## Overview
+
+This skill focuses on the role graph itself: who owns what, what each role must avoid, and when work must escalate rather than silently continue.
+
+## When to Use
+
+Use when you need to:
+
+- assign responsibilities among lead, runner, impl, and qc;
+- detect role drift or overlap;
+- decide whether a task belongs to orchestration, implementation, or verification;
+- review whether an operating design preserves independence between implementation and QC.
+
+## Boundary rules
+
+### Lead
+- Owns discovery, approval, prioritization, and user-facing tradeoffs.
+- Should remain the control tower, not the delivery worker.
+- Must receive escalations for ambiguity, blocked decisions, or completion summaries needing human judgment.
+
+### Delivery-runner
+- Owns execution choreography across the delivery chain.
+- May break work into handovers, route tasks, collect evidence, and report status.
+- Must pause and escalate when authority is missing.
+- Must not silently redefine scope or acceptance criteria.
+
+### Dev-impl
+- Owns changes to code/config/artifacts within approved scope.
+- Must provide concrete evidence of what changed and what was tested.
+- Must not self-certify final acceptance.
+
+### Dev-qc
+- Owns independent verification of acceptance and regressions.
+- Should report evidence, residual risk, and gaps.
+- Must not become a formality attached to implementation.
+
+## Escalation heuristics
+
+Escalate to `lead` when:
+
+- a decision changes scope, priority, acceptance, or release readiness;
+- the runner cannot resolve a blocker with existing authority;
+- implementation findings invalidate the kickoff assumptions;
+- QC finds a gap that needs product-level tradeoff.
+
+## Common Pitfalls
+
+1. **Runner acting like product owner.** Coordination is not authority.
+2. **Lead staying inside implementation loops too long.** This reduces leverage and muddies ownership.
+3. **QC reviewing its own implementation path.** Keep independence visible.
+4. **Using titles without contracts.** A role name is meaningless if its input/output expectations are not explicit.
+
+## Verification Checklist
+
+- [ ] Each role has a clear owner, mandate, and stop boundary.
+- [ ] Escalation rules route authority questions back to lead.
+- [ ] Impl and QC remain separable in both responsibility and evidence.
+- [ ] The topology can be explained without relying on unstated tribal knowledge.

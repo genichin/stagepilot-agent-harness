@@ -7,7 +7,7 @@ A reusable operating harness for StagePilot-style multi-agent delivery using fou
 - `dev-impl`
 - `dev-qc`
 
-This repository standardizes role boundaries, handover contracts, state transitions, notification hooks, profile templates, and project overlays so the operating model can be reused across projects instead of living only in chat context.
+This repository standardizes role boundaries, handover contracts, state transitions, notification hooks, profile templates, **and skill sources** so the operating model can be reused across projects instead of living only in chat context.
 
 ## Goals
 
@@ -17,6 +17,7 @@ This repository standardizes role boundaries, handover contracts, state transiti
 - Make handovers explicit, reviewable, and reusable.
 - Treat kanban state + notifications as operational signals rather than informal chat memory.
 - Support project-specific overlays without cloning the full operating model per project.
+- Keep docs, templates, SOUL baselines, and Hermes skills under a single source of truth.
 
 ## Repository Layout
 
@@ -26,6 +27,7 @@ stagepilot-agent-harness/
   roles/                   Role charters and boundaries
   handoffs/                Required handover contracts and examples
   templates/               Kickoff / escalation / completion templates
+  skills/                  In-repo Hermes skill sources for this harness
   profiles/templates/      Baseline SOUL.md templates by role
   scripts/                 Harness helper scripts
   playbooks/               Operational runbooks
@@ -52,23 +54,40 @@ stagepilot-agent-harness/
 - `delivery-runner -> lead` escalation
 - `delivery-runner -> lead` completion summary
 
+## Skill strategy
+
+This repository now treats `skills/` as part of the harness source tree.
+
+- The repo holds the editable source of StagePilot-related Hermes skills.
+- Docs in `docs/`, contracts in `handoffs/`, and role definitions in `roles/` remain the human-readable operating model.
+- Skills package the same model into agent-facing instructions that can be copied or symlinked into a Hermes profile later.
+- `scripts/export_skills.py` can export the in-repo skills into a target Hermes skills directory.
+
+Start with:
+
+- `skills/stagepilot-agent-harness/`
+- `skills/stagepilot-role-topology/`
+- `skills/stagepilot-handoffs/`
+
 ## Recommended Use
 
 1. Start from the docs in `docs/` and `roles/`.
 2. Copy or adapt the baseline role SOUL templates from `profiles/templates/`.
 3. Use the handover templates in `templates/` and the contracts in `handoffs/`.
-4. Place project-specific deviations under `projects/<project>/` rather than mutating core assumptions unnecessarily.
-5. Run the verification checklists before adopting a new topology.
+4. Install or export the repo-backed skills when you want Hermes profiles to consume the harness directly.
+5. Place project-specific deviations under `projects/<project>/` rather than mutating core assumptions unnecessarily.
+6. Run the verification checklists before adopting a new topology.
 
 ## Initial scope
 
-This initial scaffold captures the operating model and leaves hooks for:
+This scaffold now captures both the operating model and its agent-facing skill layer, with hooks for:
 
 - kanban-driven orchestration
 - Telegram/home-channel notification rules
 - profile bootstrap automation
 - project overlays such as TREX
+- future skill export/install automation
 
 ## Status
 
-Initial scaffold created by Hermes Agent.
+Harness scaffold plus initial in-repo StagePilot skill sources created by Hermes Agent.
