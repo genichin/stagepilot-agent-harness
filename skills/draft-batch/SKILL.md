@@ -14,7 +14,7 @@ metadata:
 
 # Purpose
 
-This skill creates a new batch delivery unit from already-selected approved requirements, chooses the right delivery profile, scaffolds its folder and documents, and updates the batch register.
+This skill creates a new batch delivery unit from approved requirements selected within already-approved scope, chooses the right delivery profile, scaffolds its folder and documents, and updates the batch register.
 
 # When to use
 
@@ -22,12 +22,12 @@ This skill creates a new batch delivery unit from already-selected approved requ
 - `/draft-batch req-001 req-002`처럼 batch 문서 scaffold와 register entry가 필요할 때
 - `/draft-batch dcy-002`처럼 confirmed Discovery 기준으로 승인된 REQ 묶음을 찾아 batch를 만들어야 할 때
 - 단일 저위험 `Approved` REQ를 `minor-change` fast path로 바로 batch-lite batch로 시작할 때
-- `suggest-batch-reqs` 결과에서 사람이 후보를 선택한 뒤 실제 batch 문서를 만들 차례일 때
+- `suggest-batch-reqs` 결과를 `delivery-runner`가 채택한 뒤 실제 batch 문서를 만들 차례일 때
 
 ## Do not use when
 
 - 아직 REQ가 `Approved`되지 않아 먼저 승인 절차가 필요할 때 (`confirm-req`가 더 적절함)
-- 어떤 REQ를 함께 묶을지 아직 사람 선택이 끝나지 않았을 때 (`suggest-batch-reqs`가 더 적절함)
+- 아직 어떤 REQ를 함께 묶을지 runner 판단 또는 lead escalation 정리가 끝나지 않았을 때 (`suggest-batch-reqs`가 더 적절함)
 - 이미 존재하는 batch의 planning/design/verification 내용을 채우는 단계일 때 (`draft-batch-planning`, `draft-batch-design`, `draft-batch-verification`이 더 적절함)
 - 현재 저장소의 전체 다음 SDLC 단계를 알고 싶은 상황일 때 (`run-sdlc`가 더 적절함)
 
@@ -63,7 +63,7 @@ This skill creates a new batch delivery unit from already-selected approved requ
 
 # Core Rules
 
-- 이 skill은 사람이 선택을 마친 REQ 집합을 batch 문서로 구체화하는 단계다.
+- 이 skill은 승인된 scope 안에서 `delivery-runner`가 선택을 마친 REQ 집합을 batch 문서로 구체화하는 단계다.
 - `Approved` 상태가 아닌 REQ는 batch에 포함하지 않는다.
 - 새 batch 폴더는 `docs/batches/bat-XXX_YYYYMMDD_scope/` 형식을 사용한다.
 - 새 batch의 persisted profile은 `standard` 또는 `batch-lite` 중 하나다.
@@ -91,7 +91,7 @@ This skill creates a new batch delivery unit from already-selected approved requ
 1. 입력이 REQ 목록인지 Discovery 식별자인지 해석한다.
    - REQ 목록이면 각 REQ 경로와 상태를 확인하고 모두 `Approved`인지 검증한다.
    - Discovery 식별자이면 해당 Discovery 문서를 찾고 `confirmed`/handoff 상태를 확인한 뒤, 그 Discovery에서 생성된 `Approved` REQ를 `docs/srs/**/req-*.md`와 `docs/srs/index.md`에서 역추적해 대상 REQ 목록으로 변환한다.
-2. 입력된 REQ 묶음이 이미 사람에 의해 선택된 집합인지 확인한다. Discovery 식별자 입력은 사람이 “이 Discovery의 승인 REQ들을 batch로 만들라”고 선택한 것으로 간주하되, 연결된 Approved REQ 집합이 명확할 때만 진행한다.
+2. 입력된 REQ 묶음이 이미 `delivery-runner` 또는 lead에 의해 승인된 scope 안에서 선택된 집합인지 확인한다. Discovery 식별자 입력은 lead가 “이 Discovery의 승인 REQ들을 delivery로 넘겨도 된다”고 handoff한 것으로 간주하되, 연결된 Approved REQ 집합이 명확할 때만 진행한다.
 3. 필요한 템플릿의 논리 경로를 현재 환경의 물리 경로로 해석하고, 어떤 위치를 사용할지 확정한다.
 4. 현재 저장소의 기존 batch 문서(`docs/batches/index.md`, 가능하면 가장 최근 batch의 `index.md`/`planning.md`)를 먼저 읽어 로컬 heading, register 표기, 문체를 확인한다. 템플릿은 scaffold source이고, target 문서는 저장소 로컬 형식을 우선한다.
 5. REQ 수, 영향 범위, 구조/인터페이스/런타임 영향 여부를 기준으로 `standard` 또는 `batch-lite` profile을 결정한다.
@@ -112,8 +112,8 @@ This skill creates a new batch delivery unit from already-selected approved requ
 1. `Approved`가 아닌 REQ를 섞는 실수
    - batch 생성은 delivery 입력이 확정된 REQ만 대상으로 해야 하므로 상태를 먼저 검증한다.
 
-2. 아직 사람 선택이 끝나지 않았는데 곧바로 batch를 만드는 실수
-   - 여러 후보안 중 선택이 남아 있으면 먼저 `suggest-batch-reqs`에서 멈춘다.
+2. 아직 runner 선택 또는 lead escalation 정리가 끝나지 않았는데 곧바로 batch를 만드는 실수
+   - 여러 후보안 중 선택이 남아 있으면 먼저 `suggest-batch-reqs`에서 정리하고, 필요한 경우 lead로 escalate한다.
 
 3. `minor-change`를 최종 profile 값처럼 기록하는 실수
    - `minor-change`는 fast path 이름일 뿐이고, persisted profile은 `batch-lite`다.
@@ -150,4 +150,4 @@ This skill creates a new batch delivery unit from already-selected approved requ
 - [ ] `planning.md`의 `Design Gate`가 현재 profile과 구조 영향 판단을 설명한다.
 - [ ] `docs/batches/index.md` register 행이 실제 batch folder, profile, included REQ, discovery와 일치한다.
 - [ ] source discovery가 단일/복수 여부에 맞게 기록되었다.
-- [ ] 아직 사람 선택이 필요한 상태를 batch 생성으로 건너뛰지 않았다.
+- [ ] 아직 runner 선택 또는 lead escalation이 필요한 상태를 batch 생성으로 건너뛰지 않았다.

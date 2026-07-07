@@ -14,7 +14,7 @@ metadata:
 
 # Purpose
 
-This skill recommends one or more candidate batch groupings from approved requirements and reports rationale, exclusions, risk, and confidence without modifying any files. 입력이 없으면 현재 저장소에서 아직 delivery 입력으로 소모되지 않은 Approved REQ를 찾아 이번 batch 후보를 추천한다.
+This skill recommends one or more candidate batch groupings from approved requirements and reports rationale, exclusions, risk, and confidence without modifying any files. 입력이 없으면 현재 저장소에서 아직 delivery 입력으로 소모되지 않은 Approved REQ를 찾아 이번 batch 후보를 추천한다. 기본 operating model에서는 이 추천의 primary consumer가 `delivery-runner`이며, runner는 approved scope 안에서 이 결과를 바탕으로 `draft-batch`를 이어서 진행할 수 있다.
 
 # When to use
 
@@ -63,12 +63,13 @@ This skill recommends one or more candidate batch groupings from approved requir
   - 독립 배포가 필요한 고위험 변경
   - 미해결 정책 결정이나 외부 의존성으로 planning이 불안정함
 
-## 사람 선택 규칙
+## Runner-driven selection rule
 
-- 추천 결과 중 어떤 후보를 채택할지는 사용자 또는 사람 책임자가 결정한다.
-- 이 skill은 후보를 자동 채택하거나 `draft-batch`를 자동 실행하지 않는다.
+- 추천 결과 중 기본 채택 후보를 고르는 책임은 기본적으로 `delivery-runner`에 있다.
+- 이 skill 자체는 저장소를 수정하지 않지만, runner는 이 결과를 근거로 `draft-batch`를 이어서 실행할 수 있다.
+- 다만 후보 선택이 승인된 scope를 사실상 바꾸거나, priority/release policy 판단을 요구하거나, 사용자가 명시적으로 hold/defer를 걸어 둔 경우에는 runner가 lead로 escalate해야 한다.
 - 후보 간 우열이 애매하면 `기본안` 1개와 `보수적 대안` 1개 이상을 함께 제시하고 trade-off를 설명한다.
-- 사람이 선택해야 하는 기준은 보통 다음 순서로 설명한다.
+- runner가 기본안을 고를 때 설명해야 하는 기준은 보통 다음 순서다.
   1. 이번 iteration 안에 끝낼 수 있는가
   2. 함께 검증할 때 verification cost가 실제로 줄어드는가
   3. release risk가 한 번에 묶어도 감당 가능한가
@@ -106,7 +107,7 @@ This skill recommends one or more candidate batch groupings from approved requir
 8. 적절한 묶음이 없지만 단일 Approved REQ는 존재하면 `단일 REQ batch 권장`을 명시한다.
 9. 각 후보에 대해 포함 REQ, 제외 REQ와 제외 이유, 추천 근거, 위험도, 신뢰도, 예상 batch profile(`standard` | `batch-lite`)을 정리한다.
 10. 각 후보에 대해 profile 판단 근거(REQ 수, 구조/인터페이스/런타임 영향, verification 흐름 복잡도)를 함께 적는다.
-11. 바로 사용할 수 있는 `/draft-batch ...` 입력 예시를 제시하되, 이는 추천 초안이며 최종 채택은 사람 선택임을 명시한다. 단, 추천 가능한 후보가 없으면 `/draft-batch` 예시는 생략하고 그 이유를 쓴다.
+11. 바로 사용할 수 있는 `/draft-batch ...` 입력 예시를 제시한다. 기본 operating model에서는 `delivery-runner`가 이 추천을 채택해 다음 단계로 넘길 수 있음을 함께 적고, 단 추천 가능한 후보가 없으면 `/draft-batch` 예시는 생략하고 그 이유를 쓴다.
 
 # Output Expectations
 
@@ -119,7 +120,7 @@ This skill recommends one or more candidate batch groupings from approved requir
 - 후보별 신뢰도 (`High|Medium|Low`)
 - 후보별 예상 batch profile (`standard` | `batch-lite`)과 판단 근거
 - `draft-batch` 추천 명령 예시
-- 최종 채택은 사람 선택이라는 안내
+- 기본 채택 주체가 `delivery-runner`이며 어떤 경우 lead escalation이 필요한지에 대한 안내
 - 단, 추천 가능한 신규 batch가 없으면 아래 형식으로 대체 보고할 수 있다.
   - 스캔한 REQ 목록
   - 승인됨/제외됨/기존 batch 포함 상태 요약
@@ -140,8 +141,8 @@ This skill recommends one or more candidate batch groupings from approved requir
 4. Discovery 입력을 받았지만 실제 연결 REQ 근거 없이 임의로 묶는 실수
    - source Discovery의 `생성된 REQ 참조` 또는 명시된 연결 REQ를 우선 근거로 삼는다.
 
-5. 추천 후보를 정답처럼 확정해 버리는 실수
-   - 어떤 후보를 채택할지는 사용자 또는 사람 책임자가 결정하며, 이 skill은 추천만 수행한다.
+5. 추천 후보를 무근거로 확정하거나, 반대로 아무 이유 없이 사람 선택만 기다리게 만드는 실수
+   - 기본 채택은 `delivery-runner`가 할 수 있지만, 승인된 scope 밖으로 흐르거나 우선순위/릴리즈 정책 판단이 섞이면 lead로 escalate해야 한다.
 
 6. 단일 저위험 REQ인데도 불필요하게 큰 batch 후보만 제시하는 실수
    - 필요하면 `단일 REQ batch 권장` 또는 `batch-lite` 대안을 함께 제시한다.
@@ -157,4 +158,4 @@ This skill recommends one or more candidate batch groupings from approved requir
 - [ ] 후보별 예상 batch profile(`standard` | `batch-lite`)과 그 근거가 제시되었다.
 - [ ] `/draft-batch` 예시 입력이 실제 후보 구성과 일치한다.
 - [ ] 저장소 상태를 변경하지 않았다.
-- [ ] 최종 채택이 사람 선택이라는 점이 명시되어 있다.
+- [ ] 기본 채택 주체(`delivery-runner`)와 lead escalation 조건이 명시되어 있다.

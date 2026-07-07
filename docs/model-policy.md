@@ -18,7 +18,7 @@ The roles do not need symmetric model quality:
 | Role | Recommended model | Why |
 |---|---|---|
 | `<project>-dev-lead` | `gpt-5.5` | Best used for approval, prioritization, ambiguity handling, and user-facing judgment. |
-| `delivery-runner` | `gpt-5.4-mini` | Best cost/performance point for orchestration, sequencing, handoffs, and state reporting. |
+| `delivery-runner` | `gpt-5.4` | Strong enough for batch grouping, delivery slicing, orchestration, and escalation framing while remaining below the lead tier. |
 | `dev-impl` | `gpt-5.3-codex-spark` | Good fit for implementation-heavy work where coding throughput matters more than premium deliberation. |
 | `dev-qc` | `gpt-5.4` | Stronger verification and review quality than the cheap runner tier, while still cheaper than the lead model. |
 
@@ -29,7 +29,7 @@ Treat the table above as the harness default unless a project overlay explicitly
 This means the baseline operating recommendation is:
 
 - `lead` → quality-first
-- `delivery-runner` → cost-efficient orchestration
+- `delivery-runner` → second-tier delivery planning plus orchestration
 - `dev-impl` → coding throughput
 - `dev-qc` → verification confidence
 
@@ -46,15 +46,16 @@ Choose the highest-quality generally available model when the role is expected t
 Degrade only when cost pressure is more important than decision quality.
 
 ### `delivery-runner`
-Prefer a cheaper, reliable model because the role mostly:
+Prefer a model one step below the lead because the role now:
 
+- chooses batch grouping and delivery slicing inside approved scope
 - routes work
 - tracks state
 - performs handoffs
 - escalates when authority is missing
 - reports completion status
 
-This role should not burn premium model budget unless the runner is also absorbing unusually complex planning or governance work.
+This role should be strong enough to make non-trivial delivery-planning judgments, but it still should not outrank the lead on product authority or approval quality.
 
 ### `dev-impl`
 Prefer a coding-oriented model or the best implementation-throughput option available. Prioritize:
@@ -93,7 +94,7 @@ The current Hermes profile setup on this machine matches the intended policy:
 | Profile | Observed model |
 |---|---|
 | `trex-dev-lead` | `gpt-5.5` |
-| `delivery-runner` | `gpt-5.4-mini` |
+| `delivery-runner` | `gpt-5.4` |
 | `dev-impl` | `gpt-5.3-codex-spark` |
 | `dev-qc` | `gpt-5.4` |
 
@@ -102,7 +103,7 @@ This is an example of the policy in practice, not a requirement that every proje
 ## Verification checklist
 
 - [ ] The lead profile still uses the highest-judgment model among the active role set.
-- [ ] The runner uses a cost-efficient orchestration model.
+- [ ] The runner uses a second-tier model strong enough for delivery planning inside approved scope.
 - [ ] The impl worker uses a coding-effective model.
 - [ ] The QC worker is not weaker than the runner in ways that harm verification quality.
 - [ ] Any deviation from the baseline mapping is documented in a project overlay or bootstrap note.

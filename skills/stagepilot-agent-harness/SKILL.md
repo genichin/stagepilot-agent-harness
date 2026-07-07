@@ -42,7 +42,7 @@ Do not use this skill as a substitute for project-specific implementation instru
 | Role | Owns | Must not own |
 |---|---|---|
 | `lead` | user communication, prioritization, approval, ambiguity resolution | long-running delivery execution |
-| `delivery-runner` | orchestration, sequencing, handovers, escalation, completion reporting | product authority, silent scope changes |
+| `delivery-runner` | batch grouping inside approved REQ scope, orchestration, sequencing, handovers, escalation, completion reporting | product authority, silent scope changes |
 | `dev-impl` | implementation, evidence, local validation | acceptance sign-off |
 | `dev-qc` | independent verification, defect surfacing, release confidence | implementation ownership |
 
@@ -67,7 +67,7 @@ Use this decision rule:
 
 1. **Treating the skill as the only source of truth.** The repository is authoritative; the skill is a compressed execution interface.
 2. **Stuffing project-specific policy into core harness language.** Put those rules under `projects/<name>/` unless they truly generalize.
-3. **Letting the runner become a shadow lead.** Runner coordinates execution but does not redefine scope or approvals.
+3. **Letting the runner become a shadow lead.** Runner may choose delivery grouping inside approved scope, but does not redefine scope, priority, or approvals.
 4. **Collapsing impl and QC into one worker mindset.** Independent verification is part of the operating model, not optional ceremony.
 
 ## Verification Checklist

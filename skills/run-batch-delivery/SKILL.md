@@ -30,7 +30,7 @@ This skill orchestrates the Delivery phase for one already-created batch by chai
 - `/run-batch-delivery bat-002`처럼 특정 batch를 delivery phase 끝까지 밀고 싶을 때
 - 이미 `draft-batch`까지 끝난 batch를 planning/design/implementation/verification/REQ 상태 동기화까지 이어서 처리할 때
 - 기존 batch가 어느 delivery 단계에서 멈췄는지 확인하고, 첫 incomplete stage부터 재개하고 싶을 때
-- 사람이 REQ 묶음을 이미 선택했고 batch도 생성했으므로, 이제 batch 내부 delivery chain만 집중 실행해야 할 때
+- `delivery-runner`가 REQ 묶음을 확정했고 batch도 생성했으므로, 이제 batch 내부 delivery chain만 집중 실행해야 할 때
 
 ## Do not use when
 
@@ -93,6 +93,8 @@ This skill orchestrates the Delivery phase for one already-created batch by chai
 ## 5. 사람 결정과 승인 게이트 존중
 
 - verification evidence가 부족하거나 blocker가 있으면 `confirm-batch-verification`에서 멈춘다.
+- 기본 경로에서는 `confirm-batch-verification` 전에 `delivery-runner -> dev-qc` 독립 검토를 거친다.
+- 단일 저위험 `batch-lite`만 예외적으로 QC handoff를 생략할 수 있고, 이 경우 생략 사유와 residual risk를 verification 문서에 남긴다.
 - REQ acceptance criteria와 evidence 연결이 불충분하면 `confirm-req-implemented`에서 멈춘다.
 - release 문서 생성과 release 승인까지 자동으로 넘기지 않는다. 이 skill의 종료점은 delivery phase 완료 직전 또는 완료 직후 상태 보고다.
 
@@ -118,12 +120,13 @@ This skill orchestrates the Delivery phase for one already-created batch by chai
 6. `draft-batch-design`이 필요하면 architecture summary, changed areas, key decisions, architecture impact가 채워졌는지 확인한다.
 7. `run-batch-implementation` 후에는 구현 변경, execution log, validation, remaining risks가 기록됐는지 확인한다.
 8. `draft-batch-verification` 후에는 REQ acceptance criteria와 evidence mapping, blocking issues, baseline 동기화 evidence가 필요한 경우 그 항목이 채워졌는지 확인한다.
-9. `confirm-batch-verification` 성공 시 batch가 `release-candidate`로 전환됐는지 확인한다. 실패 시 blocker를 보고하고 멈춘다.
-10. `confirm-req-implemented`를 실행해 포함 REQ 중 evidence가 충분한 항목만 `Implemented`로 동기화한다. 부족한 항목은 blocker와 함께 남긴다.
-11. delivery chain 종료 후 결과를 아래 중 하나로 보고한다.
+9. 기본 경로라면 `confirm-batch-verification` 전에 `delivery-runner -> dev-qc` handoff를 수행하고 QC verdict를 반영한다. 단일 저위험 `batch-lite` 예외만 QC 생략 사유와 residual risk를 남긴 뒤 다음 단계로 간다.
+10. `confirm-batch-verification` 성공 시 batch가 `release-candidate`로 전환됐는지 확인한다. 실패 시 blocker를 보고하고 멈춘다.
+11. `confirm-req-implemented`를 실행해 포함 REQ 중 evidence가 충분한 항목만 `Implemented`로 동기화한다. 부족한 항목은 blocker와 함께 남긴다.
+12. delivery chain 종료 후 결과를 아래 중 하나로 보고한다.
     - `Stopped at <stage>` + blocker
     - `Delivery chain complete through REQ sync`
-12. delivery chain이 성공적으로 끝났으면 다음 단계로 `draft-release`를 추천하되, 자동 실행하지는 않는다.
+13. delivery chain이 성공적으로 끝났으면 다음 단계로 `draft-release`를 추천하되, 자동 실행하지는 않는다.
 
 # Output Expectations
 
@@ -163,6 +166,8 @@ This skill orchestrates the Delivery phase for one already-created batch by chai
 - [ ] batch 생성 단계가 이미 완료된 상태다.
 - [ ] planning -> design -> implementation -> verification drafting -> verification approval -> REQ sync 순서가 유지되었다.
 - [ ] `batch-lite` design 생략은 `Design Gate`와 실제 영향 근거로 설명된다.
+- [ ] 기본 경로에서는 `confirm-batch-verification` 전에 QC handoff와 verdict가 반영되었다.
+- [ ] QC handoff를 생략한 경우 단일 저위험 `batch-lite` 예외이며 생략 사유와 residual risk가 기록되었다.
 - [ ] `confirm-batch-verification`은 blocker 없는 evidence 상태에서만 통과했다.
 - [ ] `confirm-req-implemented`는 evidence가 연결된 REQ만 전환했다.
 - [ ] stage별 실행 결과와 중단/완료 상태가 보고되었다.

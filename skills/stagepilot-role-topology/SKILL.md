@@ -34,6 +34,7 @@ Use when you need to:
 
 ### Delivery-runner
 - Owns execution choreography across the delivery chain.
+- Owns batch grouping and delivery slicing within already-approved scope.
 - May break work into handovers, route tasks, collect evidence, and report status.
 - Must pause and escalate when authority is missing.
 - Must not silently redefine scope or acceptance criteria.
@@ -59,7 +60,7 @@ Escalate to `lead` when:
 
 ## Common Pitfalls
 
-1. **Runner acting like product owner.** Coordination is not authority.
+1. **Runner acting like product owner.** Delivery planning inside approved scope is allowed; changing scope, priority, or approval policy is not.
 2. **Lead staying inside implementation loops too long.** This reduces leverage and muddies ownership.
 3. **QC reviewing its own implementation path.** Keep independence visible.
 4. **Using titles without contracts.** A role name is meaningless if its input/output expectations are not explicit.

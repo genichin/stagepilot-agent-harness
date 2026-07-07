@@ -42,19 +42,93 @@ stagepilot-agent-harness/
 | Role | Primary purpose | Must avoid |
 |---|---|---|
 | `lead` | Discovery drafting, Discovery approval, REQ drafting, REQ approval, prioritization, user collaboration | Getting trapped in long-running delivery execution |
-| `delivery-runner` | Orchestrate approved work through the delivery chain after approved Discovery and approved REQ handoff | Acting as product owner or silently changing scope |
+| `delivery-runner` | Choose delivery grouping inside approved REQ scope and orchestrate the delivery chain after approved Discovery and approved REQ handoff | Acting as product owner or silently changing scope |
 | `dev-impl` | Implement approved scope and provide concrete evidence | Declaring acceptance by itself |
 | `dev-qc` | Independently verify acceptance, gaps, and regressions | Becoming a rubber stamp for implementation |
 
 ### Canonical handovers
 
-Discovery drafting, Discovery approval, REQ drafting, and REQ approval stay with `lead`. The `delivery-runner` starts only after the lead has produced and approved the Discovery and the REQ documents that will anchor the cycle.
+Discovery drafting, Discovery approval, REQ drafting, and REQ approval stay with `lead`. The `delivery-runner` starts only after the lead has produced and approved the Discovery and the REQ documents that will anchor the cycle. Once that handoff exists, the runner owns batch grouping and delivery slicing within the already-approved scope so the lead can stay available for user conversation and new Discovery work.
+
+`confirm-req` completion does not require a fresh user kickoff by default. Unless the user has explicitly asked to hold, defer, or wait for another condition, the lead may automatically issue the `lead -> delivery-runner` handoff after REQ approval. In other words: approved REQ enables default auto-kickoff by the lead, while explicit user hold instructions override that default.
+
+By default, delivery should also include an independent `delivery-runner -> dev-qc` handoff before `confirm-batch-verification`. A low-risk `batch-lite` path may skip explicit QC review only when the skip reason and residual risk are documented in the verification artifact.
 
 - `lead -> delivery-runner`
 - `delivery-runner -> dev-impl`
 - `delivery-runner -> dev-qc`
 - `delivery-runner -> lead` escalation
 - `delivery-runner -> lead` completion summary
+
+### Default handoff chain
+
+| Step | Handoff | Default meaning |
+|---|---|---|
+| 1 | `lead -> delivery-runner` | Approved Discovery + Approved REQ handoff starts delivery orchestration. |
+| 2 | `delivery-runner -> dev-impl` | Implementation worker executes the approved batch scope and returns concrete change/test evidence. |
+| 3 | `delivery-runner -> dev-qc` | Independent QC reviews verification target, acceptance mapping, evidence bundle, and suspicious areas before batch verification approval. |
+| 4 | `delivery-runner -> lead` escalation | Scope, priority, approval, or release-policy questions go back to the lead instead of being decided silently in delivery. |
+| 5 | `delivery-runner -> lead` completion summary | After `confirm-req-implemented`, the runner reports delivery completion and hands control back for release-stage planning. |
+
+#### Visual chain
+
+```text
+┌──────────────┐
+│    lead      │
+│ Discovery /  │
+│ REQ approval │
+└──────┬───────┘
+       │ approved Discovery + approved REQ
+       ▼
+┌──────────────┐
+│delivery-runner│
+│ batch grouping │
+│ + orchestration│
+└───┬────────┬──┘
+    │        │
+    │ impl   │ escalation / release-policy / scope / priority
+    ▼        └──────────────────────────────────────────────► lead
+┌──────────┐
+│ dev-impl │
+│ changes +│
+│ evidence │
+└────┬─────┘
+     │ verification target + evidence bundle
+     ▼
+┌──────────┐
+│  dev-qc  │
+│independent│
+│ verification │
+└────┬─────┘
+     │ QC verdict
+     ▼
+┌──────────────────────────────┐
+│ confirm-batch-verification   │
+└──────────────┬───────────────┘
+               │ verification approved
+               ▼
+┌──────────────────────────────┐
+│  confirm-req-implemented     │
+└──────────────┬───────────────┘
+               │ delivery complete
+               ▼
+┌──────────────┐
+│    lead      │
+│ draft-release│
+│confirm-release│
+└──────────────┘
+```
+
+#### Fast mental model
+
+`lead` → `delivery-runner` → `dev-impl` → `dev-qc` → `confirm-batch-verification` → `confirm-req-implemented` → `lead`
+
+Notes:
+
+- `dev-impl` and `dev-qc` are intentionally distinct; QC is not an extension of implementation.
+- The standard path includes QC before `confirm-batch-verification`.
+- Only a low-risk `batch-lite` path may skip explicit QC handoff, and that waiver must be documented with skip reason and residual risk in verification output.
+- Release-family work resumes with the lead after runner-managed delivery reaches `confirm-req-implemented`.
 
 ## Skill strategy
 
