@@ -7,7 +7,7 @@ license: MIT
 metadata:
   hermes:
     tags: [stagepilot, harness, multi-agent, roles, handoffs, kanban]
-    related_skills: [stagepilot-role-topology, stagepilot-handoffs]
+    related_skills: [stagepilot-role-topology, stagepilot-handoffs, stagepilot-doctor-ops]
 ---
 
 # StagePilot Agent Harness

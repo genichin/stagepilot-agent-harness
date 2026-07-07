@@ -56,18 +56,26 @@ stagepilot-agent-harness/
 
 ## Skill strategy
 
-This repository now treats `skills/` as part of the harness source tree.
+This repository now treats `skills/` as part of the harness source tree and as the source-of-truth StagePilot skill catalog.
 
 - The repo holds the editable source of StagePilot-related Hermes skills.
 - Docs in `docs/`, contracts in `handoffs/`, and role definitions in `roles/` remain the human-readable operating model.
 - Skills package the same model into agent-facing instructions that can be copied or symlinked into a Hermes profile later.
 - `scripts/export_skills.py` can export the in-repo skills into a target Hermes skills directory.
+- `docs/skills.md` tracks the current catalog and `docs/skill-audit.md` tracks overlap, gap, and optimization analysis.
 
-Start with:
+The current catalog contains:
 
-- `skills/stagepilot-agent-harness/`
-- `skills/stagepilot-role-topology/`
-- `skills/stagepilot-handoffs/`
+- **3 harness-core skills**
+  - `skills/stagepilot-agent-harness/`
+  - `skills/stagepilot-role-topology/`
+  - `skills/stagepilot-handoffs/`
+- **1 operational tooling skill**
+  - `skills/stagepilot-doctor-ops/`
+- **21 imported StagePilot workflow skills**
+  - discovery, requirements, batch, release, and orchestration skills imported from `stage-pilot/skills/`
+
+Repository policy: `skills/` should contain skill directories only. Catalog/audit prose belongs under `docs/`.
 
 ## Recommended Use
 
