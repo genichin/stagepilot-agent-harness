@@ -38,6 +38,7 @@ Runner should acknowledge current stage, next artifact, likely blockers, and fir
 - Default launch mode is background execution.
 - The lead should launch `delivery-runner` explicitly via `scripts/lead-launch-runner.sh <kickoff_artifact> <delivery_state>`.
 - The wrapper starts a detached `tmux` session and runs `hermes --profile delivery-runner chat -q ...` with the kickoff/state paths embedded in the prompt.
+- After the Hermes runner process exits, the wrapper validates the delivery-state record and writes externally inspectable `exit_file` + `status_file` results. A root kickoff is not considered complete unless the state reaches lead-visible `done` or explicit `blocked`.
 - Detached background launch is the default because runner work is long-lived orchestration; the lead should not block its own session waiting for runner completion.
 - If the launch command is not issued, the kickoff remains only a persisted `ready` handoff and the runner has not started.
 

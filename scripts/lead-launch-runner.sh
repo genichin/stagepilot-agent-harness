@@ -10,6 +10,8 @@ Starts Hermes `delivery-runner` in a detached tmux session.
 By default this script first prepares an isolated git worktree + delivery branch for the kickoff,
 then launches the runner inside that worktree so lead/human discovery edits in the main checkout
 cannot leak into the delivery PR branch.
+After the runner process exits, the wrapper records both `exit_file` and `status_file` so leads can inspect
+whether the root delivery state actually reached "done", explicit "blocked", or remained incomplete.
 Core harness fixes the isolation rule plus a repo-local `.worktrees/` default, but project adoption may
 choose a different parent-folder layout (for example `repos/` or an external worktree root) through overlay
 conventions or explicit `--worktree-path` / `--workdir` overrides.
@@ -177,9 +179,12 @@ fi
 
 LOG_FILE="$LOG_DIR/${SESSION_NAME}.log"
 EXIT_FILE="$LOG_DIR/${SESSION_NAME}.exit"
+STATUS_FILE="$LOG_DIR/${SESSION_NAME}.status"
 TMP_DIR="$(mktemp -d "${TMPDIR:-/tmp}/stagepilot-runner-${SESSION_NAME}.XXXXXX")"
 PROMPT_FILE="$TMP_DIR/prompt.txt"
 RUNNER_SCRIPT="$TMP_DIR/run-runner.sh"
+IMPL_LAUNCHER="$SCRIPT_DIR/runner-launch-impl.sh"
+QC_LAUNCHER="$SCRIPT_DIR/runner-launch-qc.sh"
 
 cat > "$PROMPT_FILE" <<EOF
 Claim and execute this kickoff.
@@ -195,6 +200,11 @@ Instructions:
 - Keep all delivery-branch code, tests, commits, and PR work inside the current isolated worktree.
 - Do not pull unapproved live Discovery/REQ edits from the lead checkout into the delivery branch automatically; require explicit lead re-handoff or sync direction.
 - Continue orchestration only within approved scope.
+- Use the canonical child launchers by default:
+  - impl_launcher: $IMPL_LAUNCHER
+  - qc_launcher: $QC_LAUNCHER
+- Do not use generic delegation as a substitute for the canonical impl/QC wrappers unless the kickoff explicitly grants an override.
+- Before exiting, the root delivery state must be in a terminal state visible to the lead: "done" or explicit "blocked". Exiting while the root state remains "ready", "claimed", or "in_progress" is incomplete.
 - Do not use kanban.
 - Keep the artifact/state trail as the source of truth.
 EOF
@@ -204,8 +214,19 @@ cat > "$RUNNER_SCRIPT" <<EOF
 set -euo pipefail
 cd "$WORKDIR"
 status=0
+state_summary="unknown"
+resume_command="$(printf '%q ' "$SCRIPT_DIR/lead-launch-runner.sh" --workdir "$WORKDIR" "$KICKOFF_ARTIFACT" "$DELIVERY_STATE")"
 cleanup() {
   printf '%s\n' "\$status" > "$EXIT_FILE"
+  cat > "$STATUS_FILE" <<STATUS
+exit_code=\$status
+state_summary=\$state_summary
+session_name=$SESSION_NAME
+profile=$PROFILE
+delivery_state=$DELIVERY_STATE
+log_file=$LOG_FILE
+resume_command=\$resume_command
+STATUS
 }
 trap cleanup EXIT
 {
@@ -215,12 +236,89 @@ trap cleanup EXIT
   echo "[stagepilot] delivery_state=$DELIVERY_STATE"
   echo "[stagepilot] workdir=$WORKDIR"
   if [[ -n "$PREPARED_BRANCH_NAME" ]]; then echo "[stagepilot] delivery_branch=$PREPARED_BRANCH_NAME"; fi
+  echo "[stagepilot] impl_launcher=$IMPL_LAUNCHER"
+  echo "[stagepilot] qc_launcher=$QC_LAUNCHER"
   echo "[stagepilot] launched_at=\$(date --iso-8601=seconds)"
   echo
 } | tee -a "$LOG_FILE"
 hermes --profile "$PROFILE" chat -q "\$(cat "$PROMPT_FILE")" 2>&1 | tee -a "$LOG_FILE"
 status=\${PIPESTATUS[0]}
-exit "\$status"
+if [[ "\$status" -ne 0 ]]; then
+  state_summary="hermes_exit_nonzero"
+  exit "\$status"
+fi
+state_json="\$(python3 - "$DELIVERY_STATE" <<'PY'
+import json, sys
+path = sys.argv[1]
+with open(path, 'r', encoding='utf-8') as f:
+    data = json.load(f)
+state = str(data.get('state', 'missing'))
+stage = str(data.get('current_stage', 'missing'))
+print(json.dumps({'state': state, 'current_stage': stage}, ensure_ascii=False))
+PY
+)" || {
+  status=4
+  state_summary="invalid_delivery_state"
+  {
+    echo
+    echo "[stagepilot] terminal_state_check=invalid_delivery_state"
+    echo "[stagepilot] delivery_state_path=$DELIVERY_STATE"
+    echo "[stagepilot] resume_command=\$resume_command"
+  } | tee -a "$LOG_FILE"
+  exit "\$status"
+}
+state="\$(python3 -c 'import json,sys; print(json.loads(sys.argv[1])["state"])' "\$state_json")"
+stage="\$(python3 -c 'import json,sys; print(json.loads(sys.argv[1])["current_stage"])' "\$state_json")"
+case "\$state" in
+  done)
+    state_summary="done:stage=\$stage"
+    {
+      echo
+      echo "[stagepilot] terminal_state_check=done"
+      echo "[stagepilot] current_stage=\$stage"
+      echo "[stagepilot] delivery_state_path=$DELIVERY_STATE"
+    } | tee -a "$LOG_FILE"
+    exit 0
+    ;;
+  blocked)
+    state_summary="blocked:stage=\$stage"
+    {
+      echo
+      echo "[stagepilot] terminal_state_check=blocked"
+      echo "[stagepilot] current_stage=\$stage"
+      echo "[stagepilot] delivery_state_path=$DELIVERY_STATE"
+      echo "[stagepilot] attention=runner returned blocked state; lead review required"
+    } | tee -a "$LOG_FILE"
+    exit 0
+    ;;
+  ready|claimed|in_progress)
+    status=3
+    state_summary="incomplete:\$state:stage=\$stage"
+    {
+      echo
+      echo "[stagepilot] terminal_state_check=incomplete"
+      echo "[stagepilot] current_state=\$state"
+      echo "[stagepilot] current_stage=\$stage"
+      echo "[stagepilot] delivery_state_path=$DELIVERY_STATE"
+      echo "[stagepilot] log_file=$LOG_FILE"
+      echo "[stagepilot] resume_command=\$resume_command"
+    } | tee -a "$LOG_FILE"
+    exit "\$status"
+    ;;
+  *)
+    status=4
+    state_summary="unknown_state:\$state:stage=\$stage"
+    {
+      echo
+      echo "[stagepilot] terminal_state_check=unknown_state"
+      echo "[stagepilot] current_state=\$state"
+      echo "[stagepilot] current_stage=\$stage"
+      echo "[stagepilot] delivery_state_path=$DELIVERY_STATE"
+      echo "[stagepilot] resume_command=\$resume_command"
+    } | tee -a "$LOG_FILE"
+    exit "\$status"
+    ;;
+esac
 EOF
 chmod +x "$RUNNER_SCRIPT"
 
@@ -240,6 +338,7 @@ workdir: $WORKDIR
 prepared_branch_name: ${PREPARED_BRANCH_NAME:-}
 log_file: $LOG_FILE
 exit_file: $EXIT_FILE
+status_file: $STATUS_FILE
 tmux_command: tmux new-session -d -s $SESSION_NAME bash $RUNNER_SCRIPT
 EOF
   exit 0
@@ -258,6 +357,7 @@ workdir: $WORKDIR
 prepared_branch_name: ${PREPARED_BRANCH_NAME:-}
 log_file: $LOG_FILE
 exit_file: $EXIT_FILE
+status_file: $STATUS_FILE
 inspect: tmux capture-pane -pt $SESSION_NAME
 attach: tmux attach -t $SESSION_NAME
 EOF

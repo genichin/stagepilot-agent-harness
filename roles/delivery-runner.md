@@ -28,6 +28,7 @@ Kanban-backed delivery is forbidden. A `delivery-runner` should have at most one
 - If queued root kickoff items accumulate or priority/order is unclear, the runner should post a lead-visible backlog/ordering note in the artifact/state trail instead of guessing.
 - Downstream implementation and QC handoffs must not become kanban cards; the runner should use ordinary handoff artifacts/messages.
 - By default, downstream worker launches are explicit foreground Hermes calls: `scripts/runner-launch-impl.sh <impl_handoff_artifact> <delivery_state>` and `scripts/runner-launch-qc.sh <qc_handoff_artifact> <delivery_state>`.
+- The runner should not substitute generic delegation for those canonical impl/QC wrappers unless the kickoff or overlay explicitly grants an override.
 - The runner should not treat impl/QC like detached root kickoff daemons by default; background worker launch is optional only for materially long-running or resumable child work.
 - Before each worker launch, the runner should reflect the active worker stage in the root delivery trail (`impl-running`, `qc-review`, or equivalent).
 - After each worker returns, the runner should record evidence paths or QC verdict data back into the delivery/verification trail before advancing.
