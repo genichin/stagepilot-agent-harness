@@ -52,8 +52,9 @@ Do not use this skill as a substitute for project-specific implementation instru
 - The default `lead -> delivery-runner` root transport is a kickoff artifact plus delivery-state record; optional Telegram notification may mirror kickoff for visibility, but notification is not the source of truth.
 - The default root launcher (`scripts/lead-launch-runner.sh`) prepares a dedicated git worktree/branch per kickoff and runs `delivery-runner` inside it so lead/human Discovery edits in the main checkout do not contaminate the delivery PR branch.
 - Downstream `delivery-runner -> dev-impl` and `delivery-runner -> dev-qc` handoffs are transport-agnostic by default and must not use kanban.
-- The default downstream launch path is explicit runner-owned worker execution: `scripts/runner-launch-impl.sh <impl_handoff_artifact> <delivery_state>` and `scripts/runner-launch-qc.sh <qc_handoff_artifact> <delivery_state>`.
-- Default downstream mode is foreground bounded execution; `--background` is optional only for materially long-running or resumable child work.
+- The default downstream launch path is explicit runner-owned worker execution: `scripts/runner-launch-impl.sh <impl_handoff_artifact> <delivery_state>` and `scripts/runner-launch-qc.sh <qc_handoff_artifact> <delivery_state>` for short/simple bounded work.
+- For non-trivial child work, the runner should prefer supervised checkpoint mode via `--supervised`; extension beyond the first checkpoint requires concrete git/progress evidence, and heartbeat-only output does not qualify.
+- Default downstream mode remains foreground bounded execution; `--background` is optional only for materially long-running or resumable child work.
 - Unless a project overlay documents otherwise, a `delivery-runner` should have at most one root kickoff item in active execution globally.
 - By default, one root kickoff item maps to one primary pull request. Any one-kickoff-to-many-PR split should be explicit in the project overlay or kickoff note.
 - Live post-kickoff Discovery/REQ edits must not flow automatically into the runner delivery branch; importing them requires explicit lead re-handoff or sync direction.

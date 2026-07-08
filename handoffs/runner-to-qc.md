@@ -5,8 +5,10 @@ This handoff is transport-agnostic. It may be issued through ordinary runner-to-
 ## Default launch rule
 
 - Default launch mode is foreground bounded worker execution.
-- The runner should normally call QC explicitly via `scripts/runner-launch-qc.sh <qc_handoff_artifact> <delivery_state>`.
-- The wrapper runs `hermes --profile dev-qc chat -q ...` and blocks until QC returns a verdict.
+- For non-trivial QC handoffs, the preferred foreground path is supervised checkpoint execution via `scripts/runner-launch-qc.sh --supervised <qc_handoff_artifact> <delivery_state>`.
+- The runner may still use `scripts/runner-launch-qc.sh <qc_handoff_artifact> <delivery_state>` for short/simple bounded review work.
+- The wrapper runs `hermes --profile dev-qc chat -q ...`; in supervised mode it checkpoints progress every N minutes and extends only when concrete evidence exists.
+- Concrete evidence includes git diff/status changes or updated progress artifacts under `.stagepilot/worker-progress/`; heartbeat-only messages do not qualify.
 - The default is foreground because QC is a bounded review step inside runner-owned orchestration; it is not a second root kickoff chain.
 - Use `--background` only when the review is materially long-running, needs a resumable detached session, or the project overlay explicitly requires detached worker execution.
 

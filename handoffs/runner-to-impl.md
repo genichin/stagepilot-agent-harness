@@ -5,8 +5,10 @@ This handoff is transport-agnostic. It may be issued through ordinary runner-to-
 ## Default launch rule
 
 - Default launch mode is foreground bounded worker execution.
-- The runner should normally call implementation explicitly via `scripts/runner-launch-impl.sh <impl_handoff_artifact> <delivery_state>`.
-- The wrapper runs `hermes --profile dev-impl chat -q ...` and blocks until the impl worker returns.
+- For non-trivial implementation handoffs, the preferred foreground path is supervised checkpoint execution via `scripts/runner-launch-impl.sh --supervised <impl_handoff_artifact> <delivery_state>`.
+- The runner may still use `scripts/runner-launch-impl.sh <impl_handoff_artifact> <delivery_state>` for short/simple bounded work.
+- The wrapper runs `hermes --profile dev-impl chat -q ...`; in supervised mode it checkpoints progress every N minutes and extends only when concrete evidence exists.
+- Concrete evidence includes git diff/status changes or updated progress artifacts under `.stagepilot/worker-progress/`; heartbeat-only messages do not qualify.
 - The default is foreground because implementation is a bounded child task inside runner-owned orchestration; it is not a second root orchestrator.
 - Use `--background` only when the implementation step is materially long-running, needs a resumable detached session, or would otherwise block unrelated runner work for too long.
 

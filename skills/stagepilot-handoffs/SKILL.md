@@ -60,9 +60,10 @@ Must include:
 - evidence expected back from impl
 
 Default execution rule:
-- runner explicitly launches `scripts/runner-launch-impl.sh <impl_handoff_artifact> <delivery_state>`
-- default mode is foreground bounded worker execution
-- use `--background` only for materially long-running or resumable child work
+- runner explicitly launches `scripts/runner-launch-impl.sh <impl_handoff_artifact> <delivery_state>` for short/simple bounded work
+- for non-trivial implementation handoffs, prefer `scripts/runner-launch-impl.sh --supervised <impl_handoff_artifact> <delivery_state>`
+- supervised mode checkpoints git/progress evidence and extends only on concrete progress; heartbeat-only output does not qualify
+- `--background` remains optional only for materially long-running or resumable child work
 
 ### delivery-runner -> dev-qc
 Must include:
@@ -75,9 +76,10 @@ Must include:
 - rules for fail vs conditional pass vs pass
 
 Default execution rule:
-- runner explicitly launches `scripts/runner-launch-qc.sh <qc_handoff_artifact> <delivery_state>`
-- default mode is foreground bounded worker execution
-- use `--background` only for materially long-running or resumable child work
+- runner explicitly launches `scripts/runner-launch-qc.sh <qc_handoff_artifact> <delivery_state>` for short/simple bounded review work
+- for non-trivial QC handoffs, prefer `scripts/runner-launch-qc.sh --supervised <qc_handoff_artifact> <delivery_state>`
+- supervised mode checkpoints git/progress evidence and extends only on concrete progress; heartbeat-only output does not qualify
+- `--background` remains optional only for materially long-running or resumable child work
 
 ### delivery-runner -> lead escalation
 Must include:
