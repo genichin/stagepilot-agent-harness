@@ -14,7 +14,7 @@ This keeps user-facing work free from long-running execution while preserving re
 ## Responsibility boundaries
 
 - `<project>-dev-lead` owns Discovery drafting, Discovery approval, REQ drafting, REQ approval, clarification, prioritization, and user-facing scope decisions.
-- `delivery-runner` begins after approved Discovery and approved REQ handoff, chooses batch grouping and delivery slicing within approved scope, and does not own Discovery drafting, Discovery approval, REQ drafting, or REQ approval.
+- `delivery-runner` begins after approved Discovery and approved REQ handoff, chooses batch grouping and delivery slicing within approved scope, owns default `draft-batch` execution for approved REQ sets inside that scope, and does not own Discovery drafting, Discovery approval, REQ drafting, or REQ approval.
 - `dev-impl` and `dev-qc` operate on approved scope rather than redefining Discovery intent.
 
 ## Post-REQ kickoff rule
@@ -35,7 +35,7 @@ Default post-REQ behavior:
 
 ## Release boundary after delivery
 
-The `delivery-runner` owns the approved-scope delivery chain through batch grouping, batch creation, batch execution, verification approval, and REQ sync to `Implemented` where evidence exists.
+The `delivery-runner` owns the approved-scope delivery chain through batch grouping, batch creation (`draft-batch`), batch execution, verification approval, and REQ sync to `Implemented` where evidence exists.
 
 Standard delivery/release boundary:
 

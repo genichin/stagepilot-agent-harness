@@ -9,6 +9,7 @@ The delivery-runner converts approved work into a managed delivery chain.
 - consume approved lead handoff
 - choose batch grouping and delivery slicing within already-approved REQ scope
 - manage the sequence of batch / planning / design / implementation / verification after approved REQ input exists
+- own default `draft-batch` execution for approved REQ sets inside approved scope, including `minor-change -> batch-lite` starts unless escalation is required
 - own delivery execution through `confirm-req-implemented` for batches inside the approved scope
 - delegate coding to implementation workers
 - delegate skeptical verification to QC workers

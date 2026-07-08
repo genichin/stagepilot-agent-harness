@@ -65,6 +65,7 @@ This skill creates a new batch delivery unit from approved requirements selected
 # Core Rules
 
 - 이 skill은 승인된 scope 안에서 `delivery-runner`가 선택을 마친 REQ 집합을 batch 문서로 구체화하는 단계다.
+- 기본 operating model에서 이 skill의 accountable owner는 `delivery-runner`다. `lead`는 scope/priority/approval/governance escalation이 있을 때만 개입한다.
 - `Approved` 상태가 아닌 REQ는 batch에 포함하지 않는다.
 - 새 batch 폴더는 `docs/batches/bat-XXX_YYYYMMDD_scope/` 형식을 사용한다.
 - 새 batch의 persisted profile은 `standard` 또는 `batch-lite` 중 하나다.

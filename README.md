@@ -52,7 +52,7 @@ Use these as the normative defaults:
 
 - Kanban is forbidden in this harness. Do not use board/card transport for kickoff, queueing, implementation, QC, or completion.
 - `lead` owns Discovery drafting/approval and REQ drafting/approval.
-- `delivery-runner` starts after approved Discovery + approved REQ handoff and owns delivery orchestration within that approved scope.
+- `delivery-runner` starts after approved Discovery + approved REQ handoff and owns delivery orchestration within that approved scope, including default batch grouping and `draft-batch` execution unless a true governance escalation sends the decision back to `lead`.
 - After `confirm-req`, the lead may auto-kick off delivery unless the user explicitly asked to hold, defer, batch later, or wait.
 - Default root transport is an explicit kickoff artifact plus a small delivery-state record; optional Telegram notification may mirror it for visibility, but notification is not the source of truth.
 - Artifact creation alone does not start execution. The lead explicitly launches `delivery-runner`, and the default harness launcher is `scripts/lead-launch-runner.sh`, which first prepares an isolated per-kickoff git worktree/branch for delivery and then starts a detached background `tmux` session running `hermes --profile delivery-runner` inside that worktree.
