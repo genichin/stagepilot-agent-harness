@@ -31,7 +31,7 @@ Use when you need to:
 - Owns discovery, approval, prioritization, and user-facing tradeoffs.
 - Should remain the control tower, not the delivery worker.
 - Must receive escalations for ambiguity, blocked decisions, or optional completion summaries needing human judgment.
-- Owns the default merge decision for kickoff-aligned pull requests after runner hand-back at `confirm-req-implemented`.
+- Owns the default merge decision for kickoff-aligned pull requests before post-merge `confirm-req-implemented`.
 
 ### Delivery-runner
 - Owns execution choreography across the delivery chain.
@@ -45,7 +45,7 @@ Use when you need to:
 - Default downstream launch commands are `scripts/runner-launch-impl.sh <impl_handoff_artifact> <delivery_state>` and `scripts/runner-launch-qc.sh <qc_handoff_artifact> <delivery_state>` in foreground mode unless an overlay documents a long-running detached exception.
 - Should organize Git delivery around one primary pull request per active root kickoff by default.
 - May open and update the kickoff PR during delivery, but does not own the default merge decision.
-- Owns the standard delivery chain through `confirm-req-implemented`, including default QC handoff before `confirm-batch-verification`.
+- Owns the standard delivery chain through merge-ready hand-back, including default QC handoff before `confirm-batch-verification`.
 - Must enforce the default QC retry cap of 3 verdict cycles for the same acceptance scope, then escalate instead of looping indefinitely.
 
 ### Dev-impl

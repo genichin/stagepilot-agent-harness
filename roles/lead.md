@@ -42,12 +42,12 @@ To avoid PR-branch contamination from live Discovery edits:
 
 ## Release-stage ownership rule
 
-The lead resumes active ownership once runner-managed delivery reaches `confirm-req-implemented` or otherwise finishes its delivery chain.
+The lead resumes active ownership once runner-managed delivery reaches merge-ready hand-back or otherwise finishes its delivery chain. By default, the lead merges first and then performs `confirm-req-implemented` as the post-merge REQ sync step.
 
 - `delivery-runner` may prepare the repository up to release-ready evidence, but release drafting and release approval return to the lead by default.
 - `draft-release` and `confirm-release` are part of the release-stage conversation between the lead and the human decision-maker.
 - The lead remains accountable for release-facing tradeoffs, timing, rollout posture, and any user-visible go/no-go decision.
-- For kickoff-aligned pull requests, the lead also owns the default merge decision after runner hand-back at `confirm-req-implemented`; merge is not implied by runner completion alone.
+- For kickoff-aligned pull requests, the lead also owns the default merge decision before post-merge `confirm-req-implemented`; merge is not implied by runner completion alone.
 
 ## Must avoid
 

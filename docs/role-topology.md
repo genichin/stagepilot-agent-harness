@@ -31,15 +31,16 @@ Default post-REQ behavior:
 - Downstream impl/QC handoffs stay transport-agnostic and must not use kanban.
 - One root kickoff item maps to one primary PR by default.
 - Lead/human live Discovery edits stay in the main checkout by default; they do not automatically flow into the isolated runner worktree.
-- The runner may open/update that PR, but the default merge decision belongs to the lead after `confirm-req-implemented`.
+- The runner may open/update that PR, but the default merge decision belongs to the lead before post-merge `confirm-req-implemented`.
 
 ## Release boundary after delivery
 
-The `delivery-runner` owns the approved-scope delivery chain through batch grouping, batch creation (`draft-batch`), batch execution, verification approval, and REQ sync to `Implemented` where evidence exists.
+The `delivery-runner` owns the approved-scope delivery chain through batch grouping, batch creation (`draft-batch`), batch execution, verification approval, and merge-ready evidence hand-back. Post-merge REQ sync to `Implemented` belongs to `lead` by default.
 
 Standard delivery/release boundary:
 
-- Runner-owned endpoint: `confirm-req-implemented`.
+- Runner-owned endpoint: merge-ready hand-back after `confirm-batch-verification`.
+- Lead-owned post-merge REQ sync step: `confirm-req-implemented`.
 - Standard QC path: `delivery-runner -> dev-qc` before `confirm-batch-verification`.
 - QC skip: allowed only for low-risk `batch-lite`, with skip reason and residual risk documented.
 - QC retry cap: 3 verdict cycles for the same acceptance scope.
@@ -48,7 +49,7 @@ Standard delivery/release boundary:
 - Required successful completion signal: lead-visible `done` on the active root kickoff.
 - `archived` is reserved for terminal historical closure when a root kickoff should no longer continue as active delivery work; it is not the normal successful completion signal.
 - Optional artifact: separate runner-to-lead completion summary.
-- After `confirm-req-implemented`, release-family work returns to `lead`.
+- After runner hand-back, release-family work returns to `lead`; by default the lead merges first and then performs `confirm-req-implemented` as the post-merge REQ/document sync step.
 
 ## Exceptions
 

@@ -82,7 +82,7 @@ No exact duplicate skill names or 1:1 duplicate responsibilities were found acro
 |---|---|
 | `bootstrap-baseline` | It covers first-run repository bootstrapping and cross-cutting baseline docs, which `new-discovery` does not replace. |
 | `suggest-batch-reqs` | It preserves a distinct batch-grouping analysis step before batch creation; even with runner-owned selection, separating recommendation from batch creation keeps rationale and escalation points visible. |
-| `confirm-req-implemented` | It enforces REQ/document state sync after delivery evidence exists; this is distinct from batch verification itself. |
+| `confirm-req-implemented` | It enforces post-merge REQ/document state sync after delivery evidence exists; this is distinct from batch verification itself. |
 | `stagepilot-doctor-ops` | Doctor behavior is reused by many workflow skills, so centralizing triage logic reduces duplicated interpretation rules. |
 
 ## Unnecessary skill assessment

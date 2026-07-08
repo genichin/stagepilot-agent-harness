@@ -43,7 +43,7 @@ This skill checks whether a batch verification document has enough evidence to r
 4. QC verdict가 반복된 경우 같은 acceptance scope 기준으로 현재 verdict count를 확인하고, 3번째 unresolved verdict이면 승인 대신 escalation 대상으로 분류한다.
 5. waiver를 검토할 때는 low-risk 여부, core acceptance 충족 여부, residual risk 문서화 여부를 함께 본다. core functional failure, security/privacy, data integrity, unresolved blocking defect는 waiver 불가다.
 6. 승인 가능하면 verification 상태와 batch index 상태를 갱신한다.
-7. 승인과 함께 포함 REQ들의 구현 완료를 확인해야 하는 흐름이면 `confirm-req-implemented`도 이어서 적용하여 REQ 문서와 `docs/srs/index.md`를 `Implemented`로 동기화한다. 특히 `stagepilot-doctor`의 `approved-req-no-release-candidate-batch` warning은 batch 승격 전에는 정상일 수 있으므로, batch를 `release-candidate`로 승격하고 REQ 상태를 동기화한 뒤 반드시 doctor를 다시 실행해 warning이 해당 batch 범위에서 해소됐는지 확인한다.
+7. 승인과 함께 포함 REQ들의 구현 완료를 확인해야 하는 흐름이면, 기본적으로 merge 이후에 `confirm-req-implemented`를 이어서 적용하여 REQ 문서와 `docs/srs/index.md`를 `Implemented`로 동기화한다. 특히 pre-merge `release-candidate` 단계 warning은 정상일 수 있으므로, merge-backed 상태가 확인된 뒤 doctor를 다시 실행해 warning이 해당 batch 범위에서 해소됐는지 확인한다.
 8. 승인 불가면 상태는 유지하고 blocker를 보고한다.
 9. verification에 `Human Approval Memo`가 있으면, 메모가 수용한 blocker와 여전히 승인 불가한 blocker를 분리해서 판단한다. 사람이 수용한 항목만 남아 있다면 verification을 `approved`로 올리고 batch를 `release-candidate`로 승격할 수 있다.
 

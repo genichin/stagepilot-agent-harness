@@ -59,7 +59,7 @@ Use these as the normative defaults:
 - Downstream impl/QC handoffs are transport-agnostic and must not use kanban.
 - A default root kickoff is considered claimed only when the delivery state names `delivery-runner` as owner target, moves from `ready` to canonical `running`, and is acknowledged by the runner. Legacy `claimed` / `in_progress` records should be read as `running` and normalized on the next write.
 - Default runner concurrency is one root kickoff item in active execution globally; additional kickoff items remain queued in `ready`.
-- One root kickoff item maps to one primary PR by default; the runner may open/update it, but the default merge decision belongs to the lead after `confirm-req-implemented`.
+- One root kickoff item maps to one primary PR by default; the runner may open/update it, but the default merge decision belongs to the lead before post-merge `confirm-req-implemented`.
 - The lead/human Discovery + REQ workspace and the runner delivery PR workspace must be isolated by default: lead/human edits stay in the main checkout, while runner delivery work happens in a dedicated git worktree/branch prepared for that kickoff.
 - Core harness fixes the isolation rule and a local default only: unless a project overlay/bootstrap convention says otherwise, the default runner worktree root is repo-local `.worktrees/`.
 - Core harness does **not** fix the umbrella folder layout for every project (for example `repos/`, shared mono-workspaces, or external centralized worktree roots). Those parent-directory conventions belong in project adoption / overlay guidance.
@@ -82,7 +82,7 @@ Use these as the normative defaults:
 | 2 | `delivery-runner -> dev-impl` | Runner explicitly launches `scripts/runner-launch-impl.sh <impl_handoff_artifact> <delivery_state>` as a foreground bounded worker call by default. Impl returns concrete change/test evidence and blocker data. |
 | 3 | `delivery-runner -> dev-qc` | Runner explicitly launches `scripts/runner-launch-qc.sh <qc_handoff_artifact> <delivery_state>` as a foreground bounded worker call by default. QC returns verdict, evidence reviewed, follow-up, and verdict count before batch verification approval. |
 | 4 | `delivery-runner -> lead` escalation | Scope, priority, approval, or release-policy questions go back to the lead instead of being decided silently in delivery. |
-| 5 | `delivery-runner -> lead` completion summary (optional) | Optional wrap-up message after `confirm-req-implemented`; the required successful completion signal is the delivery state moving to lead-visible `done` with persisted delivery artifacts available for release review. `archived` is reserved for terminal historical closure of a root kickoff that should no longer continue, not normal successful completion. |
+| 5 | `delivery-runner -> lead` completion summary (optional) | Optional wrap-up message after runner delivery reaches merge-ready evidence / hand-back. The required successful completion signal is the delivery state moving to lead-visible `done` with persisted delivery artifacts available for lead merge/release review. `archived` is reserved for terminal historical closure of a root kickoff that should no longer continue, not normal successful completion. |
 
 #### Visual chain
 
@@ -135,7 +135,7 @@ Use these as the normative defaults:
 
 #### Fast mental model
 
-`lead` → `delivery-runner` → `dev-impl` → `dev-qc` → `confirm-batch-verification` → `confirm-req-implemented` → `lead`
+`lead` → `delivery-runner` → `dev-impl` → `dev-qc` → `confirm-batch-verification` → `lead` (merge) → `confirm-req-implemented`
 
 Notes:
 
@@ -143,7 +143,7 @@ Notes:
 - Only a low-risk `batch-lite` path may skip explicit QC handoff, and that waiver must be documented with skip reason and residual risk in verification output.
 - Escalate immediately instead of spending retry budget when the issue is caused by REQ ambiguity, conflicting acceptance criteria, scope mismatch, release-risk posture, or any decision outside runner authority.
 - Waiver is not allowed for core functional failures, security/privacy issues, data integrity risks, or other unresolved blocking defects.
-- Release-family work resumes with the lead after runner-managed delivery reaches `confirm-req-implemented`.
+- Release-family work resumes with the lead after runner-managed delivery reaches merge-ready hand-back; by default the lead merges first, then performs `confirm-req-implemented` as the post-merge REQ sync step.
 
 ## Skill strategy
 

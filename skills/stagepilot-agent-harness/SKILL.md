@@ -57,7 +57,7 @@ Do not use this skill as a substitute for project-specific implementation instru
 - Unless a project overlay documents otherwise, a `delivery-runner` should have at most one root kickoff item in active execution globally.
 - By default, one root kickoff item maps to one primary pull request. Any one-kickoff-to-many-PR split should be explicit in the project overlay or kickoff note.
 - Live post-kickoff Discovery/REQ edits must not flow automatically into the runner delivery branch; importing them requires explicit lead re-handoff or sync direction.
-- The runner may open and update that PR during delivery, but the default merge decision belongs to the lead after hand-back at `confirm-req-implemented`, during release-stage review.
+- The runner may open and update that PR during delivery, but the default merge decision belongs to the lead before post-merge `confirm-req-implemented`, during release-stage review.
 - The standard delivery path includes an independent `delivery-runner -> dev-qc` handoff before `confirm-batch-verification`.
 - Only a low-risk `batch-lite` path may skip explicit QC handoff, and the skip reason plus residual risk must be documented in verification output.
 - The default QC retry cap is 3 verdict cycles for the same acceptance scope (initial review plus up to 2 rework/re-review loops).

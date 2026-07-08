@@ -50,7 +50,7 @@ The harness currently carries **25 skills**:
 | `draft-req` | Draft REQ documents from a confirmed Discovery |
 | `confirm-req` | Approve REQ documents for delivery input |
 | `change-req` | Apply controlled changes to existing REQs |
-| `confirm-req-implemented` | Sync approved REQs to Implemented after evidence exists |
+| `confirm-req-implemented` | Sync approved REQs to Implemented after merge-backed delivery evidence exists |
 
 #### Batch planning and delivery
 

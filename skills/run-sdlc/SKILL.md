@@ -67,7 +67,7 @@ This skill inspects the current state of Discovery, REQ, Batch, and Release docu
 
 - `Proposed` REQ면 `confirm-req`를 다음 단계로 사용한다.
 - 기존 REQ의 `Requirement`, `Acceptance Criteria`, 구현 전제가 바뀌어 Change Log 기반 변경 관리가 필요하면 `change-req`를 다음 단계로 사용한다.
-- `Approved` REQ가 `release-candidate` 또는 `released` batch의 verification evidence와 연결돼 있으면 `confirm-req-implemented`를 다음 단계로 사용한다.
+- `Approved` REQ가 `merged` 또는 `released` batch의 verification evidence와 연결돼 있으면 `confirm-req-implemented`를 다음 단계로 사용한다.
 - 단일 `Approved` REQ이고 구조/인터페이스/런타임 영향이 없는 소규모 변경이면 `delivery-runner`가 `draft-batch`를 `minor-change -> batch-lite` 경로로 바로 진행할 수 있다.
 - Approved REQ 묶음이 2개 이상이면 기본적으로 `delivery-runner`가 `suggest-batch-reqs`를 통해 grouping을 정리하고, hold 지시가 없으면 runner-owned `draft-batch`로 이어진다. 다만 scope, priority, release policy를 바꾸는 판단은 lead escalation이 필요하다.
 - baseline 문서 갱신이 REQ에 포함돼 있으면 상태 요약에 이를 반영한다.
@@ -80,7 +80,7 @@ This skill inspects the current state of Discovery, REQ, Batch, and Release docu
 - 구현 로그와 코드 변경이 아직 없으면 `run-batch-implementation`
 - verification 문서가 없거나 불완전하면 `draft-batch-verification`
 - verification evidence가 있지만 release-candidate가 아니면 `confirm-batch-verification`
-- batch가 `release-candidate` 또는 `released`이고 포함 REQ 중 `Approved` 상태가 남아 있으면 `confirm-req-implemented`
+- batch가 `merged` 또는 `released`이고 포함 REQ 중 `Approved` 상태가 남아 있으면 `confirm-req-implemented`
 - batch가 `release-candidate`이고 포함 REQ 구현 상태 동기화까지 끝났으면 `draft-release`
 - batch design 또는 verification에 structure/flow 영향이 보이면 baseline 문서 갱신 필요 여부를 상태 요약에 포함한다.
 

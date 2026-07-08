@@ -1,6 +1,6 @@
 ---
 name: confirm-req-implemented
-description: "Use when: confirming that approved requirements have implementation and verification evidence, running /confirm-req-implemented with a REQ ID, BAT ID, or file path, promoting docs/srs/<Type>/req-XXX_<slug>.md from Approved to Implemented, or updating docs/srs/index.md after batch verification passes."
+description: "Use when: confirming that approved requirements have merge-backed implementation and verification evidence, running /confirm-req-implemented with a REQ ID, BAT ID, or file path, promoting docs/srs/<Type>/req-XXX_<slug>.md from Approved to Implemented, or updating docs/srs/index.md after merge-backed delivery confirmation."
 version: 0.7.0
 author: Justin Ko
 license: private
@@ -14,16 +14,16 @@ metadata:
 
 # Purpose
 
-This skill validates that an approved requirement has implementation and verification evidence, then promotes it to `Implemented` only when every acceptance criterion is traceable to delivery evidence.
+This skill validates that an approved requirement has merge-backed implementation and verification evidence, then promotes it to `Implemented` only when every acceptance criterion is traceable to delivery evidence.
 
-`Implemented`는 배포 완료 자체를 뜻하지 않는다. 기본 기준은 구현과 검증 증거가 확보된 상태이며, 일반적으로 `release-candidate` 또는 `released` batch의 verification 결과를 근거로 삼는다.
+`Implemented`는 배포 완료 자체를 뜻하지 않는다. 기본 기준은 merge 이후 canonical codebase에 반영된 구현과 검증 증거가 확보된 상태이며, 일반적으로 `merged` 또는 `released` batch의 verification 결과를 근거로 삼는다.
 
 # When to use
 
 - `/confirm-req-implemented req-001`처럼 특정 REQ를 `Implemented`로 전환해야 할 때
-- `/confirm-req-implemented bat-001`처럼 batch verification 이후 포함 REQ 상태를 동기화해야 할 때
-- `/confirm-req-implemented`처럼 입력 없이 현재 저장소의 `Approved` REQ 중 구현 완료로 승격 가능한 대상을 일괄 점검해야 할 때
-- `docs/srs/index.md`의 REQ 상태가 실제 batch verification evidence와 어긋나 있을 때
+- `/confirm-req-implemented bat-001`처럼 merge 이후 포함 REQ 상태를 동기화해야 할 때
+- `/confirm-req-implemented`처럼 입력 없이 현재 저장소의 `Approved` REQ 중 merge-backed 구현 완료로 승격 가능한 대상을 일괄 점검해야 할 때
+- `docs/srs/index.md`의 REQ 상태가 실제 merge-backed verification evidence와 어긋나 있을 때
 
 # Inputs
 
@@ -54,11 +54,11 @@ This skill validates that an approved requirement has implementation and verific
 
 - 아래 조건을 모두 만족해야 `Implemented`로 전환한다.
   - 대상 REQ의 현재 `Status`가 `Approved`다.
-  - 연결된 batch가 `release-candidate` 또는 `released` 상태다.
+  - 연결된 batch가 `merged` 또는 `released` 상태다.
   - batch `verification.md`에 해당 REQ의 `Acceptance Mapping`이 존재한다.
   - REQ의 모든 `Acceptance Criteria`가 verification evidence와 연결된다.
   - batch verification의 `Blocking Issues`가 이 REQ를 미통과 상태로 남기지 않는다.
-- release 배포 완료는 필수 조건이 아니다. 구현과 검증 evidence가 충분하면 `release-candidate` 상태에서도 `Implemented` 전환이 가능하다.
+- release 배포 완료는 필수 조건이 아니지만, merge는 필수다. 즉 canonical codebase에 반영된 구현과 검증 evidence가 충분하면 `merged` 상태에서 `Implemented` 전환이 가능하다.
 - 연결된 batch를 찾지 못하거나 evidence가 부족하면 상태를 바꾸지 않는다.
 - 하나의 REQ가 여러 batch에 걸쳐 있고 어떤 batch를 근거로 삼아야 할지 명확하지 않으면 임의로 전환하지 않는다.
 
@@ -78,7 +78,7 @@ This skill validates that an approved requirement has implementation and verific
 1. 입력에서 대상 REQ 하나, REQ 목록, 또는 batch 경로를 확정한다.
 2. batch 입력인 경우 batch `index.md`에서 Included REQ를 읽고 `Approved` REQ만 후보로 만든다.
 3. 입력이 없는 경우 `docs/srs/**/req-*.md`를 스캔해 `Status: Approved` 문서를 후보 목록으로 만든다.
-4. 각 후보 REQ에 대해 `docs/batches/index.md`와 batch 문서를 읽어 연결된 batch를 찾는다.
+4. 각 후보 REQ에 대해 `docs/batches/index.md`와 batch 문서를 읽어 연결된 batch를 찾고, 그 batch가 `merged` 또는 `released` 상태인지 확인한다.
 5. 연결된 batch의 `verification.md`에서 REQ acceptance mapping, evidence, blocking issue를 점검한다.
 6. 게이트를 통과한 REQ만 `Implemented`로 전환하고 `Change Log`, `docs/srs/index.md`를 갱신한다.
 7. 게이트를 통과하지 못한 REQ는 상태를 유지하고 남은 blocker를 수집한다.
@@ -89,7 +89,7 @@ This skill validates that an approved requirement has implementation and verific
 - 단일 입력 모드
   - 대상 REQ 또는 batch 경로
   - 구현 완료 전환 성공 여부
-  - 사용한 근거 batch와 verification evidence 요약
+  - 사용한 근거 batch와 merge-backed verification evidence 요약
   - 자동 보강한 항목 목록
   - 남은 blocker 또는 미해결 항목
   - `docs/srs/index.md` 갱신 결과
@@ -102,6 +102,7 @@ This skill validates that an approved requirement has implementation and verific
 # Validation
 
 - 전환 성공인 경우 REQ 문서와 `docs/srs/index.md` 상태가 모두 `Implemented`인지 확인한다.
+- 전환 성공인 경우 사용한 근거 batch가 `merged` 또는 `released` 상태인지 확인한다.
 - 전환 보류인 경우 상태가 잘못 바뀌지 않았는지 확인한다.
 - 사용한 verification evidence가 실제 REQ acceptance criteria와 연결되는지 확인한다.
 - batch 입력 모드에서는 batch에 포함된 `Approved` REQ만 처리되었는지 확인한다.
