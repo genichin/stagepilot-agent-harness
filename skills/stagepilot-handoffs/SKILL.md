@@ -90,7 +90,7 @@ Must include:
 ### delivery-runner -> lead completion
 This handoff is optional by default.
 
-- The canonical required completion signal is a lead-visible `done` delivery-state transition on the active root kickoff item plus persisted delivery artifacts/state that the lead can inspect during release review.
+- The canonical required successful completion signal is a lead-visible `done` delivery-state transition on the active root kickoff item plus persisted delivery artifacts/state that the lead can inspect during release review. `archived` is reserved for terminal historical closure of a root kickoff that should no longer continue, not normal successful completion.
 - Use an explicit completion summary when it improves handoff clarity or when a project overlay requires it.
 
 If a completion summary is sent, it should include:
@@ -123,4 +123,4 @@ If a completion summary is sent, it should include:
 - [ ] Objective, scope, evidence, and decision points are explicit.
 - [ ] Escalations clearly state what authority is being requested.
 - [ ] Any completion summary separates results from residual risk.
-- [ ] Optional completion-summary behavior is not mistaken for the canonical required completion signal.
+- [ ] Optional completion-summary behavior is not mistaken for the canonical required successful completion signal.

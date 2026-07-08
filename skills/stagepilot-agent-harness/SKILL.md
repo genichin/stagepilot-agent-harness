@@ -62,7 +62,7 @@ Do not use this skill as a substitute for project-specific implementation instru
 - Only a low-risk `batch-lite` path may skip explicit QC handoff, and the skip reason plus residual risk must be documented in verification output.
 - The default QC retry cap is 3 verdict cycles for the same acceptance scope (initial review plus up to 2 rework/re-review loops).
 - If the same QC gap remains unresolved on the 3rd verdict, the runner must escalate to the lead instead of continuing an unbounded loop.
-- The canonical required completion signal is a lead-visible `done` delivery-state transition on the active root kickoff item plus persisted delivery artifacts/state. A separate completion summary is optional by default.
+- The canonical required successful completion signal is a lead-visible `done` delivery-state transition on the active root kickoff item plus persisted delivery artifacts/state. `archived` is reserved for terminal historical closure of a root kickoff that should no longer continue, not normal successful completion. A separate completion summary is optional by default.
 
 ### Harness layering
 

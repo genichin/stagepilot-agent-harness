@@ -57,7 +57,7 @@ Use these as the normative defaults:
 - Default root transport is an explicit kickoff artifact plus a small delivery-state record; optional Telegram notification may mirror it for visibility, but notification is not the source of truth.
 - Artifact creation alone does not start execution. The lead explicitly launches `delivery-runner`, and the default harness launcher is `scripts/lead-launch-runner.sh`, which first prepares an isolated per-kickoff git worktree/branch for delivery and then starts a detached background `tmux` session running `hermes --profile delivery-runner` inside that worktree.
 - Downstream impl/QC handoffs are transport-agnostic and must not use kanban.
-- A default root kickoff is claimed only when the delivery state names `delivery-runner` as owner target, moves from `ready` to `claimed` or `in_progress`, and is acknowledged by the runner.
+- A default root kickoff is considered claimed only when the delivery state names `delivery-runner` as owner target, moves from `ready` to canonical `running`, and is acknowledged by the runner. Legacy `claimed` / `in_progress` records should be read as `running` and normalized on the next write.
 - Default runner concurrency is one root kickoff item in active execution globally; additional kickoff items remain queued in `ready`.
 - One root kickoff item maps to one primary PR by default; the runner may open/update it, but the default merge decision belongs to the lead after `confirm-req-implemented`.
 - The lead/human Discovery + REQ workspace and the runner delivery PR workspace must be isolated by default: lead/human edits stay in the main checkout, while runner delivery work happens in a dedicated git worktree/branch prepared for that kickoff.
@@ -66,7 +66,7 @@ Use these as the normative defaults:
 - Live Discovery/REQ edits made after kickoff must not flow automatically into the runner PR branch; they require an explicit re-handoff or sync decision from the lead.
 - The standard path includes `delivery-runner -> dev-qc` before `confirm-batch-verification`.
 - QC retry budget is 3 verdict cycles for the same acceptance scope; the 3rd unresolved verdict escalates to `lead`.
-- Required completion signal: delivery state reaches lead-visible `done` with persisted delivery artifacts. Separate completion summary is optional by default.
+- Required successful completion signal: delivery state reaches lead-visible `done` with persisted delivery artifacts. Separate completion summary is optional by default. `archived` is reserved for terminal historical closure of a root kickoff that should not continue, for example superseded or withdrawn work, and is not the normal successful delivery completion signal.
 
 - `lead -> delivery-runner`
 - `delivery-runner -> dev-impl`
@@ -78,11 +78,11 @@ Use these as the normative defaults:
 
 | Step | Handoff | Default meaning |
 |---|---|---|
-| 1 | `lead -> delivery-runner` | Approved Discovery + Approved REQ handoff starts delivery orchestration through a kickoff artifact + delivery-state record, then the lead explicitly launches the runner in the background via `scripts/lead-launch-runner.sh`. That launcher prepares a dedicated git worktree/branch for the kickoff so delivery PR work is isolated from ongoing lead/human Discovery edits in the main checkout. After the Hermes runner process exits, the wrapper checks the delivery-state record and leaves inspectable `exit_file`/`status_file` output; root delivery is only complete when the state reaches lead-visible `done` or explicit `blocked`. Optional Telegram notification may mirror the kickoff. |
+| 1 | `lead -> delivery-runner` | Approved Discovery + Approved REQ handoff starts delivery orchestration through a kickoff artifact + delivery-state record, then the lead explicitly launches the runner in the background via `scripts/lead-launch-runner.sh`. That launcher prepares a dedicated git worktree/branch for the kickoff so delivery PR work is isolated from ongoing lead/human Discovery edits in the main checkout. After the Hermes runner process exits, the wrapper checks the delivery-state record and leaves inspectable `exit_file`/`status_file` output; root delivery only exits cleanly once the state reaches lead-visible `done`, explicit `blocked`, or terminal `archived` closure. Optional Telegram notification may mirror the kickoff. |
 | 2 | `delivery-runner -> dev-impl` | Runner explicitly launches `scripts/runner-launch-impl.sh <impl_handoff_artifact> <delivery_state>` as a foreground bounded worker call by default. Impl returns concrete change/test evidence and blocker data. |
 | 3 | `delivery-runner -> dev-qc` | Runner explicitly launches `scripts/runner-launch-qc.sh <qc_handoff_artifact> <delivery_state>` as a foreground bounded worker call by default. QC returns verdict, evidence reviewed, follow-up, and verdict count before batch verification approval. |
 | 4 | `delivery-runner -> lead` escalation | Scope, priority, approval, or release-policy questions go back to the lead instead of being decided silently in delivery. |
-| 5 | `delivery-runner -> lead` completion summary (optional) | Optional wrap-up message after `confirm-req-implemented`; the required completion signal is the delivery state moving to lead-visible `done` with persisted delivery artifacts available for release review. |
+| 5 | `delivery-runner -> lead` completion summary (optional) | Optional wrap-up message after `confirm-req-implemented`; the required successful completion signal is the delivery state moving to lead-visible `done` with persisted delivery artifacts available for release review. `archived` is reserved for terminal historical closure of a root kickoff that should no longer continue, not normal successful completion. |
 
 #### Visual chain
 

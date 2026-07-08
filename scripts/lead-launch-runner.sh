@@ -195,7 +195,7 @@ delivery_state: $DELIVERY_STATE
 Instructions:
 - Read both files first.
 - Operate inside the current working directory; it is the delivery-isolated repo checkout for this kickoff unless the lead explicitly overrode it.
-- If the delivery owner target is $PROFILE and the delivery state is ready, claim it by updating the state to claimed or in_progress.
+- If the delivery owner target is $PROFILE and the delivery state is ready, claim it by updating the state to canonical running. If you encounter legacy claimed or in_progress values, normalize them to running on the next write.
 - Write the required acknowledgment with current stage, next artifact, likely blockers, and first execution step.
 - Keep all delivery-branch code, tests, commits, and PR work inside the current isolated worktree.
 - Do not pull unapproved live Discovery/REQ edits from the lead checkout into the delivery branch automatically; require explicit lead re-handoff or sync direction.
@@ -204,7 +204,7 @@ Instructions:
   - impl_launcher: $IMPL_LAUNCHER
   - qc_launcher: $QC_LAUNCHER
 - Do not use generic delegation as a substitute for the canonical impl/QC wrappers unless the kickoff explicitly grants an override.
-- Before exiting, the root delivery state must be in a terminal state visible to the lead: "done" or explicit "blocked". Exiting while the root state remains "ready", "claimed", or "in_progress" is incomplete.
+- Before exiting, the root delivery state must be in a terminal state visible to the lead: "done", explicit "blocked", or terminal historical "archived" closure. Exiting while the root state remains "ready" or canonical/legacy running values is incomplete.
 - Do not use kanban.
 - Keep the artifact/state trail as the source of truth.
 EOF
@@ -291,7 +291,18 @@ case "\$state" in
     } | tee -a "$LOG_FILE"
     exit 0
     ;;
-  ready|claimed|in_progress)
+  archived)
+    state_summary="archived:stage=\$stage"
+    {
+      echo
+      echo "[stagepilot] terminal_state_check=archived"
+      echo "[stagepilot] current_stage=\$stage"
+      echo "[stagepilot] delivery_state_path=$DELIVERY_STATE"
+      echo "[stagepilot] attention=root kickoff archived; lead should inspect closure reason"
+    } | tee -a "$LOG_FILE"
+    exit 0
+    ;;
+  ready|running|claimed|in_progress)
     status=3
     state_summary="incomplete:\$state:stage=\$stage"
     {

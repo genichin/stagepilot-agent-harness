@@ -38,7 +38,7 @@ Runner should acknowledge current stage, next artifact, likely blockers, and fir
 - Default launch mode is background execution.
 - The lead should launch `delivery-runner` explicitly via `scripts/lead-launch-runner.sh <kickoff_artifact> <delivery_state>`.
 - The wrapper starts a detached `tmux` session and runs `hermes --profile delivery-runner chat -q ...` with the kickoff/state paths embedded in the prompt.
-- After the Hermes runner process exits, the wrapper validates the delivery-state record and writes externally inspectable `exit_file` + `status_file` results. A root kickoff is not considered complete unless the state reaches lead-visible `done` or explicit `blocked`.
+- After the Hermes runner process exits, the wrapper validates the delivery-state record and writes externally inspectable `exit_file` + `status_file` results. A root kickoff only exits cleanly when the state reaches lead-visible `done`, explicit `blocked`, or terminal `archived` closure.
 - Detached background launch is the default because runner work is long-lived orchestration; the lead should not block its own session waiting for runner completion.
 - If the launch command is not issued, the kickoff remains only a persisted `ready` handoff and the runner has not started.
 
@@ -47,7 +47,7 @@ Runner should acknowledge current stage, next artifact, likely blockers, and fir
 The `delivery-runner` has *claimed* the kickoff only when all of the following are true:
 
 1. the runner is the explicit owner target in the delivery state record
-2. the delivery state moves from `ready` to `claimed` or `in_progress`
+2. the delivery state moves from `ready` to canonical `running` (legacy `claimed` / `in_progress` records should be interpreted as `running` and normalized on the next write)
 3. the runner updates the state or paired acknowledgment artifact with current stage, next artifact, likely blockers, and first execution step
 
 Reading the artifact without those actions is not a valid claim.

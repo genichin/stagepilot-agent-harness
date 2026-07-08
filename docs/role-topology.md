@@ -45,7 +45,8 @@ Standard delivery/release boundary:
 - QC retry cap: 3 verdict cycles for the same acceptance scope.
 - 3rd unresolved verdict: escalate to `lead`.
 - Immediate escalation instead of retry budget: REQ ambiguity, conflicting acceptance criteria, scope mismatch, or release-risk posture.
-- Required completion signal: lead-visible `done` on the active root kickoff.
+- Required successful completion signal: lead-visible `done` on the active root kickoff.
+- `archived` is reserved for terminal historical closure when a root kickoff should no longer continue as active delivery work; it is not the normal successful completion signal.
 - Optional artifact: separate runner-to-lead completion summary.
 - After `confirm-req-implemented`, release-family work returns to `lead`.
 
