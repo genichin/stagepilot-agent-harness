@@ -75,8 +75,8 @@ Use these as the normative defaults:
 | Step | Handoff | Default meaning |
 |---|---|---|
 | 1 | `lead -> delivery-runner` | Approved Discovery + Approved REQ handoff starts delivery orchestration through a kickoff artifact + delivery-state record, then the lead explicitly launches the runner in the background via `scripts/lead-launch-runner.sh`. Optional Telegram notification may mirror the kickoff. |
-| 2 | `delivery-runner -> dev-impl` | Implementation worker executes the approved batch scope and returns concrete change/test evidence. |
-| 3 | `delivery-runner -> dev-qc` | Independent QC reviews verification target, acceptance mapping, evidence bundle, and suspicious areas before batch verification approval. |
+| 2 | `delivery-runner -> dev-impl` | Runner explicitly launches `scripts/runner-launch-impl.sh <impl_handoff_artifact> <delivery_state>` as a foreground bounded worker call by default. Impl returns concrete change/test evidence and blocker data. |
+| 3 | `delivery-runner -> dev-qc` | Runner explicitly launches `scripts/runner-launch-qc.sh <qc_handoff_artifact> <delivery_state>` as a foreground bounded worker call by default. QC returns verdict, evidence reviewed, follow-up, and verdict count before batch verification approval. |
 | 4 | `delivery-runner -> lead` escalation | Scope, priority, approval, or release-policy questions go back to the lead instead of being decided silently in delivery. |
 | 5 | `delivery-runner -> lead` completion summary (optional) | Optional wrap-up message after `confirm-req-implemented`; the required completion signal is the delivery state moving to lead-visible `done` with persisted delivery artifacts available for release review. |
 
@@ -172,9 +172,10 @@ Repository policy: `skills/` should contain skill directories only. Catalog/audi
 4. Copy or adapt the baseline role SOUL templates from `profiles/templates/`.
 5. Use the handover templates in `templates/` and the contracts in `handoffs/`.
 6. Use `scripts/lead-launch-runner.sh <kickoff_artifact> <delivery_state>` when the lead needs to start a root runner handoff; the default launcher runs in a detached background `tmux` session.
-7. Install or export the repo-backed skills when you want Hermes profiles to consume the harness directly.
-8. Place project-specific deviations under `projects/<project>/` rather than mutating core assumptions unnecessarily.
-9. Run the verification checklists before adopting a new topology.
+7. Use `scripts/runner-launch-impl.sh <impl_handoff_artifact> <delivery_state>` and `scripts/runner-launch-qc.sh <qc_handoff_artifact> <delivery_state>` for downstream worker launches; default mode is foreground, with optional `--background` only for long-running child work.
+8. Install or export the repo-backed skills when you want Hermes profiles to consume the harness directly.
+9. Place project-specific deviations under `projects/<project>/` rather than mutating core assumptions unnecessarily.
+10. Run the verification checklists before adopting a new topology.
 
 ## Initial scope
 

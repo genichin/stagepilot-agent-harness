@@ -40,7 +40,8 @@ Use when you need to:
 - Must pause and escalate when authority is missing.
 - Must not silently redefine scope or acceptance criteria.
 - Should normally have at most one root kickoff item in active execution globally unless a project overlay documents another concurrency model.
-- Uses artifact-backed root handoff at the `lead -> delivery-runner` boundary, with optional Telegram notification for visibility; downstream impl/QC handoffs stay transport-agnostic and must not use kanban.
+- Uses artifact-backed root handoff at the `lead -> delivery-runner` boundary, with optional Telegram notification for visibility; downstream impl/QC handoffs stay transport-agnostic, must not use kanban, and are launched explicitly by the runner as bounded worker calls.
+- Default downstream launch commands are `scripts/runner-launch-impl.sh <impl_handoff_artifact> <delivery_state>` and `scripts/runner-launch-qc.sh <qc_handoff_artifact> <delivery_state>` in foreground mode unless an overlay documents a long-running detached exception.
 - Should organize Git delivery around one primary pull request per claimed root kickoff by default.
 - May open and update the kickoff PR during delivery, but does not own the default merge decision.
 - Owns the standard delivery chain through `confirm-req-implemented`, including default QC handoff before `confirm-batch-verification`.

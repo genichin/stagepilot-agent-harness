@@ -50,19 +50,33 @@ For artifact-backed delivery, also include:
 
 ### delivery-runner -> dev-impl
 Must include:
+- impl handoff artifact path
+- root delivery state path
 - implementation objective
 - files/systems likely affected
 - acceptance target
 - explicit out-of-scope items
 - evidence expected back from impl
 
+Default execution rule:
+- runner explicitly launches `scripts/runner-launch-impl.sh <impl_handoff_artifact> <delivery_state>`
+- default mode is foreground bounded worker execution
+- use `--background` only for materially long-running or resumable child work
+
 ### delivery-runner -> dev-qc
 Must include:
+- qc handoff artifact path
+- root delivery state path
 - verification target
 - acceptance criteria to test
 - known risk areas
 - required evidence format
 - rules for fail vs conditional pass vs pass
+
+Default execution rule:
+- runner explicitly launches `scripts/runner-launch-qc.sh <qc_handoff_artifact> <delivery_state>`
+- default mode is foreground bounded worker execution
+- use `--background` only for materially long-running or resumable child work
 
 ### delivery-runner -> lead escalation
 Must include:

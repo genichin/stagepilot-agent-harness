@@ -2,14 +2,41 @@
 
 This handoff is transport-agnostic. It may be issued through ordinary runner-to-worker instructions, documents, or messages. Kanban representation is forbidden.
 
+## Default launch rule
+
+- Default launch mode is foreground bounded worker execution.
+- The runner should normally call implementation explicitly via `scripts/runner-launch-impl.sh <impl_handoff_artifact> <delivery_state>`.
+- The wrapper runs `hermes --profile dev-impl chat -q ...` and blocks until the impl worker returns.
+- The default is foreground because implementation is a bounded child task inside runner-owned orchestration; it is not a second root orchestrator.
+- Use `--background` only when the implementation step is materially long-running, needs a resumable detached session, or would otherwise block unrelated runner work for too long.
+
+## Required state reflection
+
+- Before launch, the runner should reflect `current_stage: impl-running` in the root delivery-state or paired delivery artifact trail.
+- The handoff should name the impl handoff artifact path and the root delivery-state path.
+- When implementation returns, the runner should record evidence paths, the executed checks summary, and either `done` or `blocked` status for the implementation step.
+- A separate root delivery-state file for impl is not required by default; impl execution is tracked as a worker step under the active root delivery item.
+
 ## Required fields
 
+- impl handoff artifact path
+- root delivery state path
 - exact bounded task
 - relevant approved docs
 - acceptance target
 - commands/tests to run
 - evidence required back
 
+## Claim / start rule
+
+`dev-impl` has started only when both are true:
+
+1. the runner has explicitly launched the worker through the wrapper or an equivalent foreground Hermes call
+2. the delivery trail reflects `impl-running` (or equivalent worker-start acknowledgment) tied to the active handoff artifact
+
 ## Output expectation
 
 Implementation should return changed files, executed checks, and any remaining risks.
+
+- Minimum return payload: changed files, commands/checks run, evidence paths, residual risks/blockers.
+- If implementation cannot proceed, it should return a concrete `blocked` reason rather than silently timing out or waiting indefinitely.

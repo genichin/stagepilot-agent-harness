@@ -26,6 +26,10 @@ Kanban-backed delivery is forbidden. A `delivery-runner` should have at most one
 - The runner should not silently start a second root delivery chain in parallel just because another kickoff item exists.
 - If queued root kickoff items accumulate or priority/order is unclear, the runner should post a lead-visible backlog/ordering note in the artifact/state trail instead of guessing.
 - Downstream implementation and QC handoffs must not become kanban cards; the runner should use ordinary handoff artifacts/messages.
+- By default, downstream worker launches are explicit foreground Hermes calls: `scripts/runner-launch-impl.sh <impl_handoff_artifact> <delivery_state>` and `scripts/runner-launch-qc.sh <qc_handoff_artifact> <delivery_state>`.
+- The runner should not treat impl/QC like detached root kickoff daemons by default; background worker launch is optional only for materially long-running or resumable child work.
+- Before each worker launch, the runner should reflect the active worker stage in the root delivery trail (`impl-running`, `qc-review`, or equivalent).
+- After each worker returns, the runner should record evidence paths or QC verdict data back into the delivery/verification trail before advancing.
 - By default, the runner should organize Git delivery around one primary pull request per claimed root kickoff item so the PR boundary matches the approved scope and completion semantics of that kickoff. If one kickoff legitimately needs multiple PRs, the split should be explicit in the overlay or kickoff context rather than invented silently mid-run.
 - The runner may open and iterate on the kickoff PR during delivery, but should not assume authority to merge it merely because implementation, QC, and REQ sync are complete. Default merge ownership remains with the lead after hand-back at `confirm-req-implemented`.
 
