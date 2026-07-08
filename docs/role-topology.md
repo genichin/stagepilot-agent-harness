@@ -25,10 +25,12 @@ Default post-REQ behavior:
 - The lead may issue `lead -> delivery-runner` automatically once REQ approval completes, unless the user explicitly asked to hold, defer, batch later, or wait.
 - By default, this handoff is a kickoff artifact plus a small delivery-state record; optional Telegram notification may mirror it for visibility.
 - Artifact creation alone does not start runner work. The lead must explicitly launch `delivery-runner`; the default harness launch path is `scripts/lead-launch-runner.sh`, which runs `hermes --profile delivery-runner` in detached background `tmux`.
+- The default lead launch path also prepares a dedicated git worktree/branch for that kickoff so delivery PR work is isolated from lead/human Discovery edits in the main checkout.
 - The runner claims that kickoff only through the documented artifact/state claim semantics.
 - Default concurrency is one root kickoff item in active execution per runner globally unless a project overlay documents otherwise.
 - Downstream impl/QC handoffs stay transport-agnostic and must not use kanban.
 - One root kickoff item maps to one primary PR by default.
+- Lead/human live Discovery edits stay in the main checkout by default; they do not automatically flow into the isolated runner worktree.
 - The runner may open/update that PR, but the default merge decision belongs to the lead after `confirm-req-implemented`.
 
 ## Release boundary after delivery

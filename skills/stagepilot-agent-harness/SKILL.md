@@ -50,11 +50,13 @@ Do not use this skill as a substitute for project-specific implementation instru
 
 - After `confirm-req`, the lead may issue `lead -> delivery-runner` kickoff automatically unless the user explicitly asked to hold, defer, batch later, or wait for another confirmation point.
 - The default `lead -> delivery-runner` root transport is a kickoff artifact plus delivery-state record; optional Telegram notification may mirror kickoff for visibility, but notification is not the source of truth.
+- The default root launcher (`scripts/lead-launch-runner.sh`) prepares a dedicated git worktree/branch per kickoff and runs `delivery-runner` inside it so lead/human Discovery edits in the main checkout do not contaminate the delivery PR branch.
 - Downstream `delivery-runner -> dev-impl` and `delivery-runner -> dev-qc` handoffs are transport-agnostic by default and must not use kanban.
 - The default downstream launch path is explicit runner-owned worker execution: `scripts/runner-launch-impl.sh <impl_handoff_artifact> <delivery_state>` and `scripts/runner-launch-qc.sh <qc_handoff_artifact> <delivery_state>`.
 - Default downstream mode is foreground bounded execution; `--background` is optional only for materially long-running or resumable child work.
 - Unless a project overlay documents otherwise, a `delivery-runner` should have at most one root kickoff item in active execution globally.
 - By default, one root kickoff item maps to one primary pull request. Any one-kickoff-to-many-PR split should be explicit in the project overlay or kickoff note.
+- Live post-kickoff Discovery/REQ edits must not flow automatically into the runner delivery branch; importing them requires explicit lead re-handoff or sync direction.
 - The runner may open and update that PR during delivery, but the default merge decision belongs to the lead after hand-back at `confirm-req-implemented`, during release-stage review.
 - The standard delivery path includes an independent `delivery-runner -> dev-qc` handoff before `confirm-batch-verification`.
 - Only a low-risk `batch-lite` path may skip explicit QC handoff, and the skip reason plus residual risk must be documented in verification output.

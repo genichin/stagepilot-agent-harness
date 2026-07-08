@@ -45,6 +45,7 @@ For artifact-backed delivery, also include:
 - delivery state path
 - delivery owner target (`delivery-runner`)
 - initial delivery state (normally `ready`)
+- isolated delivery worktree / branch note (explicit or auto-prepared by launcher)
 - optional Telegram notify destination/thread
 - queue note when another root kickoff is already active for the same runner
 

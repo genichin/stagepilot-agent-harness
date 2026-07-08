@@ -17,6 +17,8 @@
 - delivery state path:
 - launch command: `scripts/lead-launch-runner.sh <kickoff_artifact> <delivery_state>`
 - launch mode: detached background `tmux`
+- default delivery branch/worktree: auto-prepared isolated runner checkout for this kickoff
+- live post-kickoff Discovery/REQ edits: do not auto-import into runner branch; require explicit lead sync/re-handoff
 - delivery owner target: `delivery-runner`
 - initial delivery state: `ready`
 - current stage: `kickoff`

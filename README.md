@@ -55,11 +55,15 @@ Use these as the normative defaults:
 - `delivery-runner` starts after approved Discovery + approved REQ handoff and owns delivery orchestration within that approved scope.
 - After `confirm-req`, the lead may auto-kick off delivery unless the user explicitly asked to hold, defer, batch later, or wait.
 - Default root transport is an explicit kickoff artifact plus a small delivery-state record; optional Telegram notification may mirror it for visibility, but notification is not the source of truth.
-- Artifact creation alone does not start execution. The lead explicitly launches `delivery-runner`, and the default harness launcher is `scripts/lead-launch-runner.sh`, which starts a detached background `tmux` session running `hermes --profile delivery-runner`.
+- Artifact creation alone does not start execution. The lead explicitly launches `delivery-runner`, and the default harness launcher is `scripts/lead-launch-runner.sh`, which first prepares an isolated per-kickoff git worktree/branch for delivery and then starts a detached background `tmux` session running `hermes --profile delivery-runner` inside that worktree.
 - Downstream impl/QC handoffs are transport-agnostic and must not use kanban.
 - A default root kickoff is claimed only when the delivery state names `delivery-runner` as owner target, moves from `ready` to `claimed` or `in_progress`, and is acknowledged by the runner.
 - Default runner concurrency is one root kickoff item in active execution globally; additional kickoff items remain queued in `ready`.
 - One root kickoff item maps to one primary PR by default; the runner may open/update it, but the default merge decision belongs to the lead after `confirm-req-implemented`.
+- The lead/human Discovery + REQ workspace and the runner delivery PR workspace must be isolated by default: lead/human edits stay in the main checkout, while runner delivery work happens in a dedicated git worktree/branch prepared for that kickoff.
+- Core harness fixes the isolation rule and a local default only: unless a project overlay/bootstrap convention says otherwise, the default runner worktree root is repo-local `.worktrees/`.
+- Core harness does **not** fix the umbrella folder layout for every project (for example `repos/`, shared mono-workspaces, or external centralized worktree roots). Those parent-directory conventions belong in project adoption / overlay guidance.
+- Live Discovery/REQ edits made after kickoff must not flow automatically into the runner PR branch; they require an explicit re-handoff or sync decision from the lead.
 - The standard path includes `delivery-runner -> dev-qc` before `confirm-batch-verification`.
 - QC retry budget is 3 verdict cycles for the same acceptance scope; the 3rd unresolved verdict escalates to `lead`.
 - Required completion signal: delivery state reaches lead-visible `done` with persisted delivery artifacts. Separate completion summary is optional by default.
@@ -74,7 +78,7 @@ Use these as the normative defaults:
 
 | Step | Handoff | Default meaning |
 |---|---|---|
-| 1 | `lead -> delivery-runner` | Approved Discovery + Approved REQ handoff starts delivery orchestration through a kickoff artifact + delivery-state record, then the lead explicitly launches the runner in the background via `scripts/lead-launch-runner.sh`. Optional Telegram notification may mirror the kickoff. |
+| 1 | `lead -> delivery-runner` | Approved Discovery + Approved REQ handoff starts delivery orchestration through a kickoff artifact + delivery-state record, then the lead explicitly launches the runner in the background via `scripts/lead-launch-runner.sh`. That launcher prepares a dedicated git worktree/branch for the kickoff so delivery PR work is isolated from ongoing lead/human Discovery edits in the main checkout. Optional Telegram notification may mirror the kickoff. |
 | 2 | `delivery-runner -> dev-impl` | Runner explicitly launches `scripts/runner-launch-impl.sh <impl_handoff_artifact> <delivery_state>` as a foreground bounded worker call by default. Impl returns concrete change/test evidence and blocker data. |
 | 3 | `delivery-runner -> dev-qc` | Runner explicitly launches `scripts/runner-launch-qc.sh <qc_handoff_artifact> <delivery_state>` as a foreground bounded worker call by default. QC returns verdict, evidence reviewed, follow-up, and verdict count before batch verification approval. |
 | 4 | `delivery-runner -> lead` escalation | Scope, priority, approval, or release-policy questions go back to the lead instead of being decided silently in delivery. |

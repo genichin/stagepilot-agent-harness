@@ -16,6 +16,7 @@ The lead is the user-facing control tower for project state, Discovery work, pri
 - approve or reject scope progression
 - decide prioritization and tradeoffs
 - start delivery through a runner only after approved Discovery and approved REQ inputs exist
+- keep lead/human Discovery + REQ editing in the main checkout and let runner delivery execute in a dedicated kickoff worktree/branch by default
 - receive escalations and completion summaries
 - resume ownership after runner completion for release-stage planning, approval, and human-facing coordination
 
@@ -29,6 +30,15 @@ The lead owns Discovery drafting, Discovery approval, REQ drafting, and REQ appr
 - REQ approval is a lead responsibility.
 - A helper, subordinate agent, or tool may assist with drafting or review, but the lead remains the accountable owner and final approver.
 - `delivery-runner` does not own Discovery drafting, Discovery approval, REQ drafting, or REQ approval; the runner starts after the lead hands off approved Discovery and approved REQ references.
+
+## Workspace isolation rule
+
+To avoid PR-branch contamination from live Discovery edits:
+
+- The lead/human should keep Discovery and REQ drafting in the primary checkout (normally `main`).
+- The default `scripts/lead-launch-runner.sh` path prepares a dedicated delivery branch + git worktree for each kickoff and launches `delivery-runner` there.
+- Live Discovery/REQ edits made after kickoff should remain in the lead checkout unless the lead explicitly re-hands off or syncs them into delivery scope.
+- The lead should not treat the runner PR branch as the workspace for ongoing Discovery drafting.
 
 ## Release-stage ownership rule
 

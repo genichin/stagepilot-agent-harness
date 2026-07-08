@@ -7,14 +7,24 @@ Usage:
   scripts/lead-launch-runner.sh [options] <kickoff_artifact> <delivery_state>
 
 Starts Hermes `delivery-runner` in a detached tmux session.
+By default this script first prepares an isolated git worktree + delivery branch for the kickoff,
+then launches the runner inside that worktree so lead/human discovery edits in the main checkout
+cannot leak into the delivery PR branch.
+Core harness fixes the isolation rule plus a repo-local `.worktrees/` default, but project adoption may
+choose a different parent-folder layout (for example `repos/` or an external worktree root) through overlay
+conventions or explicit `--worktree-path` / `--workdir` overrides.
 
 Options:
-  --profile NAME        Hermes profile to launch (default: delivery-runner)
-  --session-name NAME   tmux session name (default: runner-<kickoff-base>-<timestamp>)
-  --log-dir PATH        Log directory (default: ./.stagepilot/runner-logs)
-  --workdir PATH        Working directory for the Hermes process (default: repo root)
-  --dry-run             Print derived launch values without starting tmux
-  -h, --help            Show this help
+  --profile NAME           Hermes profile to launch (default: delivery-runner)
+  --session-name NAME      tmux session name (default: runner-<kickoff-base>-<timestamp>)
+  --log-dir PATH           Log directory (default: ./.stagepilot/runner-logs)
+  --workdir PATH           Explicit working directory for the Hermes process; skips auto worktree prep
+  --base-ref REF           Base ref for auto-prepared delivery branch/worktree (default: main)
+  --branch-name NAME       Explicit delivery branch name for auto-prepared worktree
+  --worktree-path PATH     Explicit path for auto-prepared worktree
+  --skip-worktree          Do not auto-prepare isolated runner worktree
+  --dry-run                Print derived launch values without starting tmux
+  -h, --help               Show this help
 EOF
 }
 
@@ -33,6 +43,10 @@ PROFILE="delivery-runner"
 SESSION_NAME=""
 LOG_DIR=""
 WORKDIR=""
+BASE_REF="main"
+BRANCH_NAME=""
+WORKTREE_PATH=""
+SKIP_WORKTREE=0
 DRY_RUN=0
 POSITIONAL=()
 
@@ -53,6 +67,22 @@ while [[ $# -gt 0 ]]; do
     --workdir)
       WORKDIR="$2"
       shift 2
+      ;;
+    --base-ref)
+      BASE_REF="$2"
+      shift 2
+      ;;
+    --branch-name)
+      BRANCH_NAME="$2"
+      shift 2
+      ;;
+    --worktree-path)
+      WORKTREE_PATH="$2"
+      shift 2
+      ;;
+    --skip-worktree)
+      SKIP_WORKTREE=1
+      shift
       ;;
     --dry-run)
       DRY_RUN=1
@@ -85,19 +115,18 @@ fi
 
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd -- "$SCRIPT_DIR/.." && pwd)"
-WORKDIR="${WORKDIR:-$REPO_ROOT}"
+PREPARE_WORKTREE_SCRIPT="$SCRIPT_DIR/prepare-runner-worktree.sh"
+DEFAULT_ROOT_WORKDIR="$REPO_ROOT"
 LOG_DIR="${LOG_DIR:-$REPO_ROOT/.stagepilot/runner-logs}"
 
 KICKOFF_ARTIFACT="$(abspath "${POSITIONAL[0]}")"
 DELIVERY_STATE="$(abspath "${POSITIONAL[1]}")"
-WORKDIR="$(abspath "$WORKDIR")"
 LOG_DIR="$(abspath "$LOG_DIR")"
 
 if [[ ! -f "$KICKOFF_ARTIFACT" ]]; then
   echo "error: kickoff artifact not found: $KICKOFF_ARTIFACT" >&2
   exit 1
 fi
-
 if [[ ! -f "$DELIVERY_STATE" ]]; then
   echo "error: delivery state not found: $DELIVERY_STATE" >&2
   exit 1
@@ -106,8 +135,37 @@ fi
 require_cmd hermes
 require_cmd tmux
 require_cmd python3
-
 mkdir -p "$LOG_DIR"
+
+PREPARED_WORKTREE_PATH=""
+PREPARED_BRANCH_NAME=""
+if [[ -n "$WORKDIR" ]]; then
+  WORKDIR="$(abspath "$WORKDIR")"
+elif [[ "$SKIP_WORKTREE" -eq 1 ]]; then
+  WORKDIR="$DEFAULT_ROOT_WORKDIR"
+else
+  require_cmd git
+  if [[ ! -x "$PREPARE_WORKTREE_SCRIPT" ]]; then
+    echo "error: helper script not executable: $PREPARE_WORKTREE_SCRIPT" >&2
+    exit 1
+  fi
+  prep_args=("$KICKOFF_ARTIFACT" "$DELIVERY_STATE" --base-ref "$BASE_REF")
+  if [[ -n "$BRANCH_NAME" ]]; then prep_args+=(--branch-name "$BRANCH_NAME"); fi
+  if [[ -n "$WORKTREE_PATH" ]]; then prep_args+=(--worktree-path "$WORKTREE_PATH"); fi
+  if [[ "$DRY_RUN" -eq 1 ]]; then prep_args+=(--dry-run); fi
+  prep_output="$($PREPARE_WORKTREE_SCRIPT "${prep_args[@]}")"
+  PREPARED_WORKTREE_PATH="$(printf '%s
+' "$prep_output" | awk -F': ' '/^worktree_path:/ {print $2}')"
+  PREPARED_BRANCH_NAME="$(printf '%s
+' "$prep_output" | awk -F': ' '/^branch_name:/ {print $2}')"
+  if [[ -z "$PREPARED_WORKTREE_PATH" ]]; then
+    echo "error: failed to derive worktree path from prepare-runner-worktree output" >&2
+    echo "$prep_output" >&2
+    exit 1
+  fi
+  WORKDIR="$PREPARED_WORKTREE_PATH"
+fi
+WORKDIR="$(abspath "$WORKDIR")"
 
 if [[ -z "$SESSION_NAME" ]]; then
   kickoff_base="$(basename "$KICKOFF_ARTIFACT")"
@@ -131,8 +189,11 @@ delivery_state: $DELIVERY_STATE
 
 Instructions:
 - Read both files first.
+- Operate inside the current working directory; it is the delivery-isolated repo checkout for this kickoff unless the lead explicitly overrode it.
 - If the delivery owner target is $PROFILE and the delivery state is ready, claim it by updating the state to claimed or in_progress.
 - Write the required acknowledgment with current stage, next artifact, likely blockers, and first execution step.
+- Keep all delivery-branch code, tests, commits, and PR work inside the current isolated worktree.
+- Do not pull unapproved live Discovery/REQ edits from the lead checkout into the delivery branch automatically; require explicit lead re-handoff or sync direction.
 - Continue orchestration only within approved scope.
 - Do not use kanban.
 - Keep the artifact/state trail as the source of truth.
@@ -153,6 +214,7 @@ trap cleanup EXIT
   echo "[stagepilot] kickoff_artifact=$KICKOFF_ARTIFACT"
   echo "[stagepilot] delivery_state=$DELIVERY_STATE"
   echo "[stagepilot] workdir=$WORKDIR"
+  if [[ -n "$PREPARED_BRANCH_NAME" ]]; then echo "[stagepilot] delivery_branch=$PREPARED_BRANCH_NAME"; fi
   echo "[stagepilot] launched_at=\$(date --iso-8601=seconds)"
   echo
 } | tee -a "$LOG_FILE"
@@ -175,6 +237,7 @@ profile: $PROFILE
 kickoff_artifact: $KICKOFF_ARTIFACT
 delivery_state: $DELIVERY_STATE
 workdir: $WORKDIR
+prepared_branch_name: ${PREPARED_BRANCH_NAME:-}
 log_file: $LOG_FILE
 exit_file: $EXIT_FILE
 tmux_command: tmux new-session -d -s $SESSION_NAME bash $RUNNER_SCRIPT
@@ -191,6 +254,8 @@ session_name: $SESSION_NAME
 profile: $PROFILE
 kickoff_artifact: $KICKOFF_ARTIFACT
 delivery_state: $DELIVERY_STATE
+workdir: $WORKDIR
+prepared_branch_name: ${PREPARED_BRANCH_NAME:-}
 log_file: $LOG_FILE
 exit_file: $EXIT_FILE
 inspect: tmux capture-pane -pt $SESSION_NAME

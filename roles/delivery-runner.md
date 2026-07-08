@@ -31,6 +31,9 @@ Kanban-backed delivery is forbidden. A `delivery-runner` should have at most one
 - Before each worker launch, the runner should reflect the active worker stage in the root delivery trail (`impl-running`, `qc-review`, or equivalent).
 - After each worker returns, the runner should record evidence paths or QC verdict data back into the delivery/verification trail before advancing.
 - By default, the runner should organize Git delivery around one primary pull request per claimed root kickoff item so the PR boundary matches the approved scope and completion semantics of that kickoff. If one kickoff legitimately needs multiple PRs, the split should be explicit in the overlay or kickoff context rather than invented silently mid-run.
+- By default, the runner should execute that kickoff inside a dedicated git worktree/branch prepared for the kickoff rather than in the lead/human checkout.
+- The runner should treat the main checkout as lead/human Discovery territory and must not silently pull live post-kickoff Discovery/REQ edits into the delivery branch.
+- If delivery needs a later Discovery/REQ change, the runner should require an explicit lead re-handoff or sync note before importing it into the isolated delivery worktree.
 - The runner may open and iterate on the kickoff PR during delivery, but should not assume authority to merge it merely because implementation, QC, and REQ sync are complete. Default merge ownership remains with the lead after hand-back at `confirm-req-implemented`.
 
 - The normal runner-owned endpoint is `confirm-req-implemented`.
