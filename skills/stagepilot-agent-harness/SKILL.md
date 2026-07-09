@@ -54,6 +54,9 @@ Do not use this skill as a substitute for project-specific implementation instru
 - Downstream `delivery-runner -> dev-impl` and `delivery-runner -> dev-qc` handoffs are transport-agnostic by default and must not use kanban.
 - The default downstream launch path is explicit runner-owned worker execution: `scripts/runner-launch-impl.sh <impl_handoff_artifact> <delivery_state>` and `scripts/runner-launch-qc.sh <qc_handoff_artifact> <delivery_state>` for short/simple bounded work.
 - For non-trivial child work, the runner should prefer supervised checkpoint mode via `--supervised`; extension beyond the first checkpoint requires concrete git/progress evidence, and heartbeat-only output does not qualify.
+- Runner-owned impl slicing should normally target work that can show concrete progress evidence within about 5 minutes and is likely to close within about 30 minutes, i.e. roughly half of the default supervised checkpoint/runtime budget.
+- If an impl slice is unlikely to close within about 30 minutes, split it further before launch unless the work is genuinely atomic and further slicing would create worse context loss or rework.
+- If an impl task remains genuinely atomic and still cannot reasonably fit inside the default 60-minute supervised cap, the runner may use an explicit long-run supervised exception with a larger checkpoint/runtime budget, recorded early-progress evidence expectations, and a stated hard cap.
 - Default downstream mode remains foreground bounded execution; `--background` is optional only for materially long-running or resumable child work.
 - Unless a project overlay documents otherwise, a `delivery-runner` should have at most one root kickoff item in active execution globally.
 - By default, one root kickoff item maps to one primary pull request. Any one-kickoff-to-many-PR split should be explicit in the project overlay or kickoff note.
