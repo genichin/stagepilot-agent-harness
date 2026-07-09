@@ -66,6 +66,7 @@ Default execution rule:
 - runner should normally slice impl work so concrete progress evidence can appear within about 5 minutes and completion is likely within about 30 minutes
 - if a slice is unlikely to finish within about 30 minutes, split it further before launch unless the work is genuinely atomic
 - if the work remains genuinely atomic and still cannot reasonably fit inside the default 60-minute supervised cap, use only an explicit long-run supervised exception with larger checkpoint/runtime values and recorded early-progress evidence expectations
+- `scripts/runner-launch-impl.sh` supports `--preset default|stretched|long-run` for the standard supervision budgets; explicit minute flags may still override when a justified nonstandard budget is needed
 - `--background` remains optional only for materially long-running or resumable child work
 
 ### delivery-runner -> dev-qc

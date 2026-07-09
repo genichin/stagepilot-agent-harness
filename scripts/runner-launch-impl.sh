@@ -4,15 +4,21 @@ set -euo pipefail
 usage() {
   cat <<'EOF'
 Usage:
-  scripts/runner-launch-impl.sh [--supervised] [--checkpoint-minutes N] [--max-minutes N] [--progress-artifact PATH] [--background] [--session-name NAME] <impl_handoff_artifact> <delivery_state>
+  scripts/runner-launch-impl.sh [--supervised] [--preset NAME] [--checkpoint-minutes N] [--max-minutes N] [--progress-artifact PATH] [--background] [--session-name NAME] <impl_handoff_artifact> <delivery_state>
 
 Default:
   Foreground bounded worker call using Hermes profile `dev-impl`.
 
+Presets:
+  default    checkpoint=10, max=60   Normal supervised bounded work.
+  stretched  checkpoint=15, max=90   Slightly longer supervised exception.
+  long-run   checkpoint=20, max=120  Explicit long-run supervised exception.
+
 Options:
   --supervised             Run under evidence-based checkpoint supervision.
-  --checkpoint-minutes N   Supervised checkpoint interval in minutes (default: 10).
-  --max-minutes N          Supervised hard runtime cap in minutes (default: 60).
+  --preset NAME            Runtime budget preset: default | stretched | long-run.
+  --checkpoint-minutes N   Supervised checkpoint interval in minutes (preset-aware; explicit value overrides preset).
+  --max-minutes N          Supervised hard runtime cap in minutes (preset-aware; explicit value overrides preset).
   --progress-artifact PATH Override the progress artifact path used in prompts/supervision.
   --background             Run in detached tmux instead of foreground.
   --session-name NAME      Override tmux session name for background mode.
@@ -23,10 +29,34 @@ EOF
 background=0
 supervised=0
 session_name=""
-checkpoint_minutes="10"
-max_minutes="60"
+preset_name="default"
+checkpoint_minutes=""
+max_minutes=""
 progress_artifact_override=""
+checkpoint_explicit=0
+max_explicit=0
 args=()
+
+apply_preset() {
+  case "$1" in
+    default)
+      [[ $checkpoint_explicit -eq 1 ]] || checkpoint_minutes="10"
+      [[ $max_explicit -eq 1 ]] || max_minutes="60"
+      ;;
+    stretched)
+      [[ $checkpoint_explicit -eq 1 ]] || checkpoint_minutes="15"
+      [[ $max_explicit -eq 1 ]] || max_minutes="90"
+      ;;
+    long-run)
+      [[ $checkpoint_explicit -eq 1 ]] || checkpoint_minutes="20"
+      [[ $max_explicit -eq 1 ]] || max_minutes="120"
+      ;;
+    *)
+      echo "error: unknown --preset '$1' (expected: default, stretched, long-run)" >&2
+      exit 2
+      ;;
+  esac
+}
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -38,14 +68,21 @@ while [[ $# -gt 0 ]]; do
       supervised=1
       shift
       ;;
+    --preset)
+      preset_name=${2:-}
+      [[ -n "$preset_name" ]] || { echo "error: --preset requires a value" >&2; exit 2; }
+      shift 2
+      ;;
     --checkpoint-minutes)
       checkpoint_minutes=${2:-}
       [[ -n "$checkpoint_minutes" ]] || { echo "error: --checkpoint-minutes requires a value" >&2; exit 2; }
+      checkpoint_explicit=1
       shift 2
       ;;
     --max-minutes)
       max_minutes=${2:-}
       [[ -n "$max_minutes" ]] || { echo "error: --max-minutes requires a value" >&2; exit 2; }
+      max_explicit=1
       shift 2
       ;;
     --progress-artifact)
@@ -77,6 +114,10 @@ if [[ ${#args[@]} -ne 2 ]]; then
   usage >&2
   exit 2
 fi
+
+apply_preset "$preset_name"
+[[ -n "$checkpoint_minutes" ]] || { echo "error: checkpoint budget unresolved" >&2; exit 2; }
+[[ -n "$max_minutes" ]] || { echo "error: max runtime budget unresolved" >&2; exit 2; }
 
 repo_root=$(git rev-parse --show-toplevel 2>/dev/null || pwd)
 impl_handoff=$(realpath "${args[0]}")
@@ -140,6 +181,9 @@ run_supervised() {
   if [[ $background -eq 0 ]]; then
     echo "mode: foreground-supervised"
     echo "profile: dev-impl"
+    echo "preset: $preset_name"
+    echo "checkpoint_minutes: $checkpoint_minutes"
+    echo "max_minutes: $max_minutes"
     echo "impl_handoff_artifact: $impl_handoff"
     echo "delivery_state: $delivery_state"
     echo "progress_artifact: $progress_artifact"
@@ -161,6 +205,9 @@ run_supervised() {
   echo "supervised: true"
   echo "session_name: $session_name"
   echo "profile: dev-impl"
+  echo "preset: $preset_name"
+  echo "checkpoint_minutes: $checkpoint_minutes"
+  echo "max_minutes: $max_minutes"
   echo "impl_handoff_artifact: $impl_handoff"
   echo "delivery_state: $delivery_state"
   echo "progress_artifact: $progress_artifact"
@@ -175,6 +222,9 @@ fi
 if [[ $background -eq 0 ]]; then
   echo "mode: foreground"
   echo "profile: dev-impl"
+  echo "preset: $preset_name"
+  echo "checkpoint_minutes: $checkpoint_minutes"
+  echo "max_minutes: $max_minutes"
   echo "impl_handoff_artifact: $impl_handoff"
   echo "delivery_state: $delivery_state"
   echo "progress_artifact: $progress_artifact"
@@ -196,6 +246,9 @@ echo "background: true"
 echo "supervised: false"
 echo "session_name: $session_name"
 echo "profile: dev-impl"
+echo "preset: $preset_name"
+echo "checkpoint_minutes: $checkpoint_minutes"
+echo "max_minutes: $max_minutes"
 echo "impl_handoff_artifact: $impl_handoff"
 echo "delivery_state: $delivery_state"
 echo "progress_artifact: $progress_artifact"

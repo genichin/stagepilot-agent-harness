@@ -12,6 +12,7 @@ This handoff is transport-agnostic. It may be issued through ordinary runner-to-
 - Runner slicing should normally target impl work that can show concrete progress evidence within about 5 minutes and is likely to finish within about 30 minutes, i.e. roughly half of the default supervised checkpoint/runtime budget.
 - If a proposed impl slice is unlikely to finish within about 30 minutes, split it further before launch unless the work is genuinely atomic.
 - If the work remains genuinely atomic and still cannot reasonably fit inside the default 60-minute supervised cap, the runner may use an explicit long-run supervised exception with larger `--checkpoint-minutes` / `--max-minutes` values, but the handoff must record why the task cannot be usefully sliced further, what early progress artifact or git evidence should appear, and what hard cap is being used.
+- `scripts/runner-launch-impl.sh` also supports runtime-budget presets: `--preset default` (10/60), `--preset stretched` (15/90), and `--preset long-run` (20/120). Explicit minute flags still override the preset when a justified nonstandard budget is needed.
 - The default is foreground because implementation is a bounded child task inside runner-owned orchestration; it is not a second root orchestrator.
 - Use `--background` only when the implementation step is materially long-running, needs a resumable detached session, or would otherwise block unrelated runner work for too long.
 
