@@ -119,7 +119,8 @@ apply_preset "$preset_name"
 [[ -n "$checkpoint_minutes" ]] || { echo "error: checkpoint budget unresolved" >&2; exit 2; }
 [[ -n "$max_minutes" ]] || { echo "error: max runtime budget unresolved" >&2; exit 2; }
 
-repo_root=$(git rev-parse --show-toplevel 2>/dev/null || pwd)
+script_dir=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
+worktree_root=$(git rev-parse --show-toplevel 2>/dev/null || pwd)
 impl_handoff=$(realpath "${args[0]}")
 delivery_state=$(realpath "${args[1]}")
 
@@ -130,7 +131,9 @@ command -v python3 >/dev/null 2>&1 || { echo "error: python3 not found in PATH" 
 
 handoff_id=$(basename "$impl_handoff")
 handoff_id=${handoff_id%.*}
-progress_artifact=${progress_artifact_override:-"$repo_root/.stagepilot/worker-progress/${handoff_id}.md"}
+supervise_worker="$script_dir/supervise_worker.py"
+[[ -f "$supervise_worker" ]] || { echo "error: supervise_worker.py not found next to launcher: $supervise_worker" >&2; exit 1; }
+progress_artifact=${progress_artifact_override:-"$worktree_root/.stagepilot/worker-progress/${handoff_id}.md"}
 mkdir -p "$(dirname "$progress_artifact")"
 
 prompt=$(cat <<EOF
@@ -165,9 +168,9 @@ EOF
 
 run_supervised() {
   local -a supervisor_cmd=(
-    python3 "$repo_root/scripts/supervise_worker.py"
+    python3 "$supervise_worker"
     --label impl
-    --workdir "$repo_root"
+    --workdir "$worktree_root"
     --profile dev-impl
     --handoff-artifact "$impl_handoff"
     --delivery-state "$delivery_state"
@@ -191,12 +194,12 @@ run_supervised() {
   fi
 
   command -v tmux >/dev/null 2>&1 || { echo "error: tmux not found in PATH" >&2; exit 1; }
-  mkdir -p "$repo_root/.stagepilot/worker-logs"
+  mkdir -p "$worktree_root/.stagepilot/worker-logs"
   if [[ -z "$session_name" ]]; then
     session_name="impl-supervised-$(date +%Y%m%d-%H%M%S)"
   fi
-  log_file="$repo_root/.stagepilot/worker-logs/${session_name}.log"
-  exit_file="$repo_root/.stagepilot/worker-logs/${session_name}.exit"
+  log_file="$worktree_root/.stagepilot/worker-logs/${session_name}.log"
+  exit_file="$worktree_root/.stagepilot/worker-logs/${session_name}.exit"
   run_script=$(printf '%q ' "${supervisor_cmd[@]}")
   tmux new-session -d -s "$session_name" "bash -lc $(printf '%q' "$run_script > $(printf '%q' "$log_file") 2>&1; status=$?; printf \"%s\\n\" \"$status\" > $(printf '%q' "$exit_file")")"
 
@@ -232,12 +235,12 @@ if [[ $background -eq 0 ]]; then
 fi
 
 command -v tmux >/dev/null 2>&1 || { echo "error: tmux not found in PATH" >&2; exit 1; }
-mkdir -p "$repo_root/.stagepilot/worker-logs"
+mkdir -p "$worktree_root/.stagepilot/worker-logs"
 if [[ -z "$session_name" ]]; then
   session_name="impl-$(date +%Y%m%d-%H%M%S)"
 fi
-log_file="$repo_root/.stagepilot/worker-logs/${session_name}.log"
-exit_file="$repo_root/.stagepilot/worker-logs/${session_name}.exit"
+log_file="$worktree_root/.stagepilot/worker-logs/${session_name}.log"
+exit_file="$worktree_root/.stagepilot/worker-logs/${session_name}.exit"
 run_script=$(printf 'hermes --profile dev-impl chat -q %q > %q 2>&1; status=$?; printf "%%s\\n" "$status" > %q' "$prompt" "$log_file" "$exit_file")
 tmux new-session -d -s "$session_name" "bash -lc $(printf '%q' "$run_script")"
 

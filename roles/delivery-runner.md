@@ -28,6 +28,7 @@ Kanban-backed delivery is forbidden. A `delivery-runner` should have at most one
 - If queued root kickoff items accumulate or priority/order is unclear, the runner should post a lead-visible backlog/ordering note in the artifact/state trail instead of guessing.
 - Downstream implementation and QC handoffs must not become kanban cards; the runner should use ordinary handoff artifacts/messages.
 - By default, downstream worker launches are explicit foreground Hermes calls: `scripts/runner-launch-impl.sh <impl_handoff_artifact> <delivery_state>` and `scripts/runner-launch-qc.sh <qc_handoff_artifact> <delivery_state>`.
+- Harness launchers are expected to run in place from the harness repo (often by absolute path) while the runner process cwd stays in the target delivery worktree; helper scripts resolve relative to the launcher location, while worker `--workdir`, git evidence, and progress artifacts stay rooted in the target worktree.
 - For non-trivial child work, the runner should prefer supervised checkpoint mode: `scripts/runner-launch-impl.sh --supervised ...` and `scripts/runner-launch-qc.sh --supervised ...`.
 - Supervised extension is evidence-based only: concrete git/progress-artifact changes qualify, heartbeat-only output does not.
 - Time-budget-aware slicing is required for impl handoffs by default: the runner should normally choose slices that can emit concrete progress evidence within about 5 minutes and are likely to close within about 30 minutes, i.e. roughly half of the default supervised checkpoint/runtime budget.

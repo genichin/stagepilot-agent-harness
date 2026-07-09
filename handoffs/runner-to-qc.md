@@ -6,6 +6,7 @@ This handoff is transport-agnostic. It may be issued through ordinary runner-to-
 
 - Default launch mode is foreground bounded worker execution.
 - For non-trivial QC handoffs, the preferred foreground path is supervised checkpoint execution via `scripts/runner-launch-qc.sh --supervised <qc_handoff_artifact> <delivery_state>`.
+- The launcher is expected to run in place from the harness repo (often by absolute path) even when the runner cwd is the target delivery worktree; helper scripts resolve relative to the launcher location, while worker `--workdir`, git evidence, and progress artifacts stay rooted in the target worktree.
 - The runner may still use `scripts/runner-launch-qc.sh <qc_handoff_artifact> <delivery_state>` for short/simple bounded review work.
 - The wrapper runs `hermes --profile dev-qc chat -q ...`; in supervised mode it checkpoints progress every N minutes and extends only when concrete evidence exists.
 - Concrete evidence includes git diff/status changes or updated progress artifacts under `.stagepilot/worker-progress/`; heartbeat-only messages do not qualify.

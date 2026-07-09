@@ -62,6 +62,7 @@ Must include:
 Default execution rule:
 - runner explicitly launches `scripts/runner-launch-impl.sh <impl_handoff_artifact> <delivery_state>` for short/simple bounded work
 - for non-trivial implementation handoffs, prefer `scripts/runner-launch-impl.sh --supervised <impl_handoff_artifact> <delivery_state>`
+- launchers are expected to run in place from the harness repo (often by absolute path) while the runner cwd stays in the target delivery worktree; helper scripts resolve relative to the launcher location, while worker `--workdir`, git evidence, and progress artifacts stay rooted in the target worktree
 - supervised mode checkpoints git/progress evidence and extends only on concrete progress; heartbeat-only output does not qualify
 - runner should normally slice impl work so concrete progress evidence can appear within about 5 minutes and completion is likely within about 30 minutes
 - if a slice is unlikely to finish within about 30 minutes, split it further before launch unless the work is genuinely atomic
