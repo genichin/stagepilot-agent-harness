@@ -62,6 +62,8 @@ Do not use this skill as a substitute for project-specific implementation instru
 - Default downstream mode remains foreground bounded execution; `--background` is optional only for materially long-running or resumable child work.
 - Unless a project overlay documents otherwise, a `delivery-runner` should have at most one root kickoff item in active execution globally.
 - By default, one root kickoff item maps to one primary pull request. Any one-kickoff-to-many-PR split should be explicit in the project overlay or kickoff note.
+- Early in a PR-bound kickoff, the runner should run publication auth preflight from the isolated delivery worktree before spending substantial impl/QC time. Standard helper: `scripts/check-publication-auth.sh --json`, which checks remote presence, `gh auth status`, `git ls-remote origin`, and `git push --dry-run origin HEAD:refs/heads/<current-branch>`.
+- If that preflight fails, the runner should stop early and record a blocked/escalation reason like `publication_auth_missing` or a narrower helper-derived suffix.
 - Live post-kickoff Discovery/REQ edits must not flow automatically into the runner delivery branch; importing them requires explicit lead re-handoff or sync direction.
 - The runner may open and update that PR during delivery, but the default merge decision belongs to the lead before post-merge `confirm-req-implemented`, during release-stage review.
 - The standard delivery path includes an independent `delivery-runner -> dev-qc` handoff before `confirm-batch-verification`.
@@ -69,6 +71,7 @@ Do not use this skill as a substitute for project-specific implementation instru
 - The default QC retry cap is 3 verdict cycles for the same acceptance scope (initial review plus up to 2 rework/re-review loops).
 - If the same QC gap remains unresolved on the 3rd verdict, the runner must escalate to the lead instead of continuing an unbounded loop.
 - The canonical required successful completion signal is a lead-visible `done` delivery-state transition on the active root kickoff item plus persisted delivery artifacts/state. `archived` is reserved for terminal historical closure of a root kickoff that should no longer continue, not normal successful completion. A separate completion summary is optional by default.
+- Supervised child no-progress stops should be classified as specifically as the evidence allows. Prefer stall subtypes such as `context_compaction_loop`, `read_loop_no_diff`, and `progress_artifact_missing` over a bare generic timeout when the child log / artifact state supports that conclusion.
 
 ### Harness layering
 

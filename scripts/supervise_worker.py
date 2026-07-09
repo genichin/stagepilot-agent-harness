@@ -20,6 +20,8 @@ RESULT_EXIT_CODES = {
     'blocked': 3,
     'worker_exit_nonzero': 10,
     'timeout_no_progress': 124,
+    'timeout_no_progress_read_loop': 124,
+    'timeout_no_progress_progress_artifact_missing': 124,
     'timeout_with_progress': 125,
     'max_runtime_exceeded': 126,
 }
@@ -147,6 +149,83 @@ def checkpoint_payload(*, index: int, elapsed_seconds: float, evidence_reasons: 
 
 
 
+def classify_stall(*, child_log: Path, progress_artifact: Path | None, progress_dir: Path | None,
+                   current: EvidenceState, evidence: bool, elapsed: float, max_seconds: float,
+                   checkpoint_seconds: float) -> tuple[str, str, str | None, list[str]]:
+    log_text = log_tail(child_log, max_chars=16000)
+    lowered = log_text.lower()
+    reasons: list[str] = []
+    stall_subtype: str | None = None
+
+    hard_cap_reached = elapsed >= max_seconds - 1e-9 or elapsed + checkpoint_seconds > max_seconds + 1e-9
+    tracked_progress_files = collect_progress_files(progress_artifact, progress_dir)
+    progress_artifact_missing = not any(path.exists() for path in tracked_progress_files)
+
+    compact_hits = (
+        lowered.count('context compact')
+        + lowered.count('context compaction')
+        + lowered.count('compacting conversation')
+    )
+    if compact_hits:
+        reasons.append(f'context_compaction_markers={compact_hits}')
+
+    read_hits = log_text.count('📖 read') + lowered.count('read_file(') + lowered.count('read file')
+    search_hits = log_text.count('🔎 search') + lowered.count('search_files(')
+    write_hits = log_text.count('✏️ write') + log_text.count('🩹 patch') + lowered.count('write_file(') + lowered.count('patch(')
+    if read_hits or search_hits:
+        reasons.append(f'read_markers={read_hits}')
+        reasons.append(f'search_markers={search_hits}')
+    if write_hits:
+        reasons.append(f'write_markers={write_hits}')
+    if progress_artifact_missing:
+        reasons.append('progress_artifact_missing')
+
+    if not evidence:
+        if compact_hits >= 2:
+            stall_subtype = 'context_compaction_loop'
+        elif (read_hits + search_hits) >= 3 and write_hits == 0 and not current.git_diff_stat.strip():
+            stall_subtype = 'read_loop_no_diff'
+        elif progress_artifact_missing:
+            stall_subtype = 'progress_artifact_missing'
+
+    if evidence:
+        return (
+            'max_runtime_exceeded' if hard_cap_reached else 'timeout_with_progress',
+            'progress evidence existed but supervisor refused further extension at hard cap',
+            stall_subtype,
+            reasons,
+        )
+
+    if stall_subtype == 'read_loop_no_diff':
+        return (
+            'timeout_no_progress_read_loop',
+            'no concrete progress evidence at checkpoint; child log suggests a repeated read/search loop without diff or artifact output',
+            stall_subtype,
+            reasons,
+        )
+    if stall_subtype == 'progress_artifact_missing':
+        return (
+            'timeout_no_progress_progress_artifact_missing',
+            'no concrete progress evidence at checkpoint; expected progress artifact was never produced',
+            stall_subtype,
+            reasons,
+        )
+    if stall_subtype == 'context_compaction_loop':
+        return (
+            'timeout_no_progress',
+            'no concrete progress evidence at checkpoint; child log suggests repeated context compaction without shipped progress',
+            stall_subtype,
+            reasons,
+        )
+    return (
+        'timeout_no_progress',
+        'no concrete progress evidence at checkpoint',
+        stall_subtype,
+        reasons,
+    )
+
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description='Supervise a bounded child worker with evidence-based checkpoint extension.')
     parser.add_argument('--label', required=True)
@@ -242,6 +321,8 @@ def main(argv: list[str]) -> int:
     observed_progress = False
     result_class: str | None = None
     result_reason = ''
+    stall_subtype: str | None = None
+    stall_classification_reasons: list[str] = []
     last_progress_updates: list[dict[str, object]] = []
     last_evidence_reasons: list[str] = []
 
@@ -334,12 +415,16 @@ def main(argv: list[str]) -> int:
         terminated_rc = terminate_process(proc)
         if terminated_rc is not None:
             child_exit_file.write_text(f'{terminated_rc}\n', encoding='utf-8')
-        if evidence:
-            result_class = 'max_runtime_exceeded' if elapsed >= max_seconds - 1e-9 or elapsed + checkpoint_seconds > max_seconds + 1e-9 else 'timeout_with_progress'
-            result_reason = 'progress evidence existed but supervisor refused further extension at hard cap'
-        else:
-            result_class = 'timeout_no_progress'
-            result_reason = 'no concrete progress evidence at checkpoint'
+        result_class, result_reason, stall_subtype, stall_classification_reasons = classify_stall(
+            child_log=child_log,
+            progress_artifact=progress_artifact,
+            progress_dir=progress_dir,
+            current=current,
+            evidence=evidence,
+            elapsed=elapsed,
+            max_seconds=max_seconds,
+            checkpoint_seconds=checkpoint_seconds,
+        )
         previous = current
         break
 
@@ -368,6 +453,8 @@ def main(argv: list[str]) -> int:
         'checkpoints_taken': checkpoints_taken,
         'extensions_granted': extensions_granted,
         'observed_progress': observed_progress,
+        'stall_subtype': stall_subtype,
+        'stall_classification_reasons': stall_classification_reasons,
         'last_evidence_reasons': last_evidence_reasons,
         'last_progress_updates': last_progress_updates,
         'run_dir': str(run_dir),

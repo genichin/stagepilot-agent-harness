@@ -46,6 +46,26 @@ python3 <discovered-stagepilot-doctor.py> --strict-missing-docs .
 python3 <discovered-stagepilot-doctor.py> --report artifacts/stagepilot-doctor.md .
 ```
 
+## Adoption-mode classification
+
+A repository or project overlay should declare one of these modes for `stagepilot-doctor` instead of leaving the meaning implicit:
+
+- `required`: doctor must be runnable for this workspace/repo state; missing entrypoint is a blocker.
+- `optional`: doctor is desirable evidence, but missing entrypoint is tooling debt rather than an immediate execution blocker.
+- `not-adopted`: the repo does not currently ship or require doctor; absence alone should not be treated as a failure.
+
+Recommended detection order:
+
+1. `command -v stagepilot-doctor`
+2. `python -m stagepilot_doctor --help`
+3. any repo-local wrapper or documented vendor path
+
+Classification when nothing is found:
+
+- `required` -> blocker code `stagepilot_doctor_required_missing`
+- `optional` -> non-blocking debt code `tooling_debt:stagepilot_doctor_unavailable`
+- `not-adopted` -> note the absence, but do not escalate on that fact alone
+
 ## Core checks the doctor performs
 
 The doctor validates or summarizes at least the following:

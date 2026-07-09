@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 import json
-import shutil
 import subprocess
 import tempfile
 import textwrap
@@ -24,6 +23,9 @@ class SuperviseWorkerTests(unittest.TestCase):
         subprocess.run(['git', 'add', 'tracked.txt'], cwd=self.repo, check=True)
         subprocess.run(['git', 'commit', '-m', 'init'], cwd=self.repo, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
         (self.repo / '.stagepilot' / 'worker-progress').mkdir(parents=True, exist_ok=True)
+        (self.repo / '.stagepilot' / 'worker-progress' / '.gitkeep').write_text('', encoding='utf-8')
+        subprocess.run(['git', 'add', '.stagepilot/worker-progress/.gitkeep'], cwd=self.repo, check=True)
+        subprocess.run(['git', 'commit', '-m', 'track progress dir'], cwd=self.repo, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
 
     def tearDown(self) -> None:
         self.tempdir.cleanup()
@@ -63,9 +65,11 @@ class SuperviseWorkerTests(unittest.TestCase):
         self.assertEqual(payload['checkpoints_taken'], 0)
 
     def test_no_progress_timeout(self) -> None:
+        (self.repo / '.stagepilot' / 'worker-progress' / 'no-progress.md').write_text('placeholder\n', encoding='utf-8')
         proc, payload = self.run_supervisor('no-progress', 'sleep 3')
         self.assertEqual(proc.returncode, 124)
         self.assertEqual(payload['result_class'], 'timeout_no_progress')
+        self.assertIsNone(payload['stall_subtype'])
         self.assertGreaterEqual(payload['checkpoints_taken'], 1)
 
     def test_progress_artifact_extension(self) -> None:
@@ -123,6 +127,43 @@ class SuperviseWorkerTests(unittest.TestCase):
         self.assertEqual(proc.returncode, 126)
         self.assertEqual(payload['result_class'], 'max_runtime_exceeded')
         self.assertGreaterEqual(payload['extensions_granted'], 1)
+
+    def test_read_loop_no_diff_is_classified(self) -> None:
+        command = textwrap.dedent('''\
+            for i in 1 2 3 4; do
+              printf "📖 read tracked.txt\\n"
+              printf "🔎 search tracked\\n"
+              sleep 0.5
+            done
+            sleep 2
+        ''')
+        proc, payload = self.run_supervisor('read-loop', command)
+        self.assertEqual(proc.returncode, 124)
+        self.assertEqual(payload['result_class'], 'timeout_no_progress_read_loop')
+        self.assertEqual(payload['stall_subtype'], 'read_loop_no_diff')
+        self.assertIn('read_markers=', ' '.join(payload['stall_classification_reasons']))
+
+    def test_context_compaction_loop_is_classified(self) -> None:
+        command = textwrap.dedent('''\
+            for i in 1 2 3; do
+              printf "context compaction triggered\\n"
+              printf "compacting conversation due to context budget\\n"
+              sleep 0.5
+            done
+            sleep 2
+        ''')
+        proc, payload = self.run_supervisor('compaction-loop', command)
+        self.assertEqual(proc.returncode, 124)
+        self.assertEqual(payload['result_class'], 'timeout_no_progress')
+        self.assertEqual(payload['stall_subtype'], 'context_compaction_loop')
+        self.assertIn('context_compaction_markers=', ' '.join(payload['stall_classification_reasons']))
+
+    def test_missing_progress_artifact_is_classified(self) -> None:
+        proc, payload = self.run_supervisor('missing-artifact', 'sleep 3')
+        self.assertEqual(proc.returncode, 124)
+        self.assertEqual(payload['result_class'], 'timeout_no_progress_progress_artifact_missing')
+        self.assertEqual(payload['stall_subtype'], 'progress_artifact_missing')
+        self.assertIn('progress_artifact_missing', payload['stall_classification_reasons'])
 
 
 if __name__ == '__main__':

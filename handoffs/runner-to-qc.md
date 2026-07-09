@@ -10,6 +10,7 @@ This handoff is transport-agnostic. It may be issued through ordinary runner-to-
 - The runner may still use `scripts/runner-launch-qc.sh <qc_handoff_artifact> <delivery_state>` for short/simple bounded review work.
 - The wrapper runs `hermes --profile dev-qc chat -q ...`; in supervised mode it checkpoints progress every N minutes and extends only when concrete evidence exists.
 - Concrete evidence includes git diff/status changes or updated progress artifacts under `.stagepilot/worker-progress/`; heartbeat-only messages do not qualify.
+- If QC verification depends on `stagepilot-doctor`, the handoff should say whether doctor is `required`, `optional`, or `not-adopted` for this repo/workspace so missing entrypoints are classified consistently.
 - The default is foreground because QC is a bounded review step inside runner-owned orchestration; it is not a second root kickoff chain.
 - Use `--background` only when the review is materially long-running, needs a resumable detached session, or the project overlay explicitly requires detached worker execution.
 

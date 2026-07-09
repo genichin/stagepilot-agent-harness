@@ -185,6 +185,7 @@ PROMPT_FILE="$TMP_DIR/prompt.txt"
 RUNNER_SCRIPT="$TMP_DIR/run-runner.sh"
 IMPL_LAUNCHER="$SCRIPT_DIR/runner-launch-impl.sh"
 QC_LAUNCHER="$SCRIPT_DIR/runner-launch-qc.sh"
+PUBLICATION_PREFLIGHT="$SCRIPT_DIR/check-publication-auth.sh"
 
 cat > "$PROMPT_FILE" <<EOF
 Claim and execute this kickoff.
@@ -200,6 +201,10 @@ Instructions:
 - Keep all delivery-branch code, tests, commits, and PR work inside the current isolated worktree.
 - Do not pull unapproved live Discovery/REQ edits from the lead checkout into the delivery branch automatically; require explicit lead re-handoff or sync direction.
 - Continue orchestration only within approved scope.
+- Before spending substantial impl/QC effort on PR-bound delivery, run publication auth preflight from the delivery worktree and record the outcome in the delivery trail:
+  - publication_preflight: $PUBLICATION_PREFLIGHT --json
+  - minimum checks: git remote get-url origin, gh auth status, git ls-remote origin, git push --dry-run origin HEAD:refs/heads/<current-branch>
+  - if preflight fails, stop early, reflect a blocked/escalation trail entry, and classify it with reason code publication_auth_missing (or a more specific suffix from the helper output).
 - Use the canonical child launchers by default:
   - impl_launcher: $IMPL_LAUNCHER
   - qc_launcher: $QC_LAUNCHER
@@ -238,6 +243,7 @@ trap cleanup EXIT
   if [[ -n "$PREPARED_BRANCH_NAME" ]]; then echo "[stagepilot] delivery_branch=$PREPARED_BRANCH_NAME"; fi
   echo "[stagepilot] impl_launcher=$IMPL_LAUNCHER"
   echo "[stagepilot] qc_launcher=$QC_LAUNCHER"
+  echo "[stagepilot] publication_preflight=$PUBLICATION_PREFLIGHT"
   echo "[stagepilot] launched_at=\$(date --iso-8601=seconds)"
   echo
 } | tee -a "$LOG_FILE"

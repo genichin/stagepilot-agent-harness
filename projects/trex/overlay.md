@@ -9,6 +9,8 @@
 - root kickoff workspace isolation: `scripts/lead-launch-runner.sh` prepares a per-kickoff delivery branch/worktree so TREX discovery edits in the main checkout do not leak into the runner PR branch
 - impl launch default: runner explicitly starts `dev-impl` in foreground via `scripts/runner-launch-impl.sh`
 - qc launch default: runner explicitly starts `dev-qc` in foreground via `scripts/runner-launch-qc.sh`
+- publication preflight: for PR-bound delivery, runner should run `scripts/check-publication-auth.sh --json` from the isolated delivery worktree before spending substantial impl/QC time; preflight failures should escalate early with `publication_auth_missing...`
+- doctor adoption mode: TREX should declare one of `required`, `optional`, or `not-adopted` for `stagepilot-doctor` per repo/workspace, and QC/runner should classify missing entrypoints accordingly instead of guessing
 - optional Telegram notify: project-specific thread/message routing if TREX wants visibility
 - kanban: forbidden. Do not use board/card transport for kickoff, queueing, implementation, QC, or completion.
 
