@@ -20,8 +20,19 @@
 - default delivery branch/worktree: auto-prepared isolated runner checkout for this kickoff
 - live post-kickoff Discovery/REQ edits: do not auto-import into runner branch; require explicit lead sync/re-handoff
 - delivery owner target: `delivery-runner`
-- initial delivery state: `ready`
-- current stage: `kickoff`
+
+## Root delivery-state seed
+- status: `ready`
+- current_stage: `kickoff`
+- owner_target: `delivery-runner`
+- goal:
+- kickoff_artifact:
+- updated_at:
+- approved_refs:
+- scope_summary:
+- evidence_paths:
+- next_action: `launch_runner`
+- optional pr_ref:
 - expected reporting cadence / milestone:
 - escalation conditions:
 - optional Telegram notify destination/thread:

@@ -43,8 +43,11 @@ Must include:
 For artifact-backed delivery, also include:
 - kickoff artifact path
 - delivery state path
-- delivery owner target (`delivery-runner`)
-- initial delivery state (normally `ready`)
+- `owner_target` (`delivery-runner`)
+- `status` (normally `ready`)
+- `current_stage` (`kickoff`)
+- `goal`
+- `updated_at`
 - isolated delivery worktree / branch note (explicit or auto-prepared by launcher)
 - optional Telegram notify destination/thread
 - queue note when another root kickoff is already active for the same runner
@@ -88,17 +91,31 @@ Default execution rule:
 
 ### delivery-runner -> lead escalation
 Must include:
-- current state
-- exact blocker
+- `current_stage`
+- `status` (normally `blocked`)
+- `reason_class`
+- `blocker_code`
+- optional `blocker_detail`
+- blocker summary / exact blocker
 - options considered
-- decision required
-- impact of delay or wrong choice
+- required lead decision
+- recommended next action
+- impact of delay or risk of proceeding
+- `evidence_paths`
+
+Recommended reason classes:
+- `scope_or_requirements`
+- `approval_or_priority`
+- `tooling_or_access_blocker`
+- `verification_or_release_risk`
+- `queue_or_capacity`
 
 ### delivery-runner -> lead completion
 This handoff is optional by default.
 
 - The canonical required successful completion signal is a lead-visible `done` delivery-state transition on the active root kickoff item plus persisted delivery artifacts/state that the lead can inspect during release review. `archived` is reserved for terminal historical closure of a root kickoff that should no longer continue, not normal successful completion.
 - Use an explicit completion summary when it improves handoff clarity or when a project overlay requires it.
+- A completion summary should align to the root state by preserving `status=done`, the final `current_stage` (normally `merge-ready`), and direct `evidence_paths` / `pr_ref` where applicable.
 
 If a completion summary is sent, it should include:
 - original objective

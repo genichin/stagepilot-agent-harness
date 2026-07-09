@@ -1,8 +1,13 @@
 # Status Report Template
 
-- current stage:
-- owner:
+- status:
+- current_stage:
+- owner_target:
+- goal:
 - active task/card:
-- latest evidence:
-- blocker:
-- next step:
+- current_handoff_artifact:
+- latest evidence_paths:
+- blocker_code:
+- optional blocker_detail:
+- next_action:
+- updated_at:

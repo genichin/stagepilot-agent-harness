@@ -20,12 +20,24 @@ Artifact creation alone does not start execution. The lead must explicitly launc
 - kickoff artifact path
 - delivery state path
 
-If the handoff is emitted through artifact-backed transport, also set:
+If the handoff is emitted through artifact-backed transport, also set at minimum:
 
-- delivery owner target = `delivery-runner`
-- initial delivery state = `ready`
-- current stage = `kickoff`
+- `owner_target = delivery-runner`
+- `status = ready`
+- `current_stage = kickoff`
 - approved reference list in the state record
+- `goal`
+- `kickoff_artifact`
+- `updated_at`
+
+Strongly recommended root state fields at kickoff time:
+
+- `scope_summary`
+- `next_action = launch_runner`
+- `evidence_paths` (may initially include only the kickoff artifact)
+- `pr_ref` when the kickoff already maps to a known delivery branch/PR plan
+
+See `docs/state-machine.md` for the canonical root delivery-state and escalation artifact schema.
 
 Kanban transport is forbidden in this harness. Do not emit root kickoff cards or board-based queue state.
 

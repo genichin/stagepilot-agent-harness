@@ -4,8 +4,20 @@ This handoff artifact is optional by default. The required successful completion
 
 ## Minimum payload
 
+- `status` = `done` in the root delivery-state record (completion summary is secondary)
+- final `current_stage` such as `merge-ready`
 - scope delivered
 - artifacts produced
 - verification executed
 - unresolved risks
 - suggested next step
+- `evidence_paths` that let the lead inspect the result directly
+- `pr_ref` / branch reference when the kickoff maps to a PR
+
+## Completion-state rule
+
+A completion summary should match the root delivery-state record rather than invent a separate success definition.
+
+- Successful normal completion => root state `status=done`
+- Historical withdrawal/supersession => root state `status=archived` with closure reason
+- If the runner still needs a lead decision, use escalation instead of completion
