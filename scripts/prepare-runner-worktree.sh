@@ -13,6 +13,7 @@ Default local convention is repo-local `.worktrees/`, but project adoption may o
 (for example a top-level `repos/` workspace or an external shared worktree root) via overlay guidance or explicit flags.
 
 Options:
+  --repo-root PATH       Target delivery repository root (default: repo field from delivery_state, then cwd)
   --base-ref REF         Base ref for new branch/worktree (default: main)
   --branch-name NAME     Explicit branch name (default: sp/<kickoff-base>-delivery)
   --worktree-path PATH   Explicit worktree path (default: <repo>/.worktrees/<kickoff-base>)
@@ -42,6 +43,7 @@ print(value or 'kickoff')
 PY
 }
 
+REPO_ROOT_ARG=""
 BASE_REF="main"
 BRANCH_NAME=""
 WORKTREE_PATH=""
@@ -51,6 +53,10 @@ POSITIONAL=()
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
+    --repo-root)
+      REPO_ROOT_ARG="$2"
+      shift 2
+      ;;
     --base-ref)
       BASE_REF="$2"
       shift 2
@@ -100,7 +106,7 @@ require_cmd git
 require_cmd python3
 
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
-REPO_ROOT="$(cd -- "$SCRIPT_DIR/.." && pwd)"
+SCRIPT_REPO_ROOT="$(cd -- "$SCRIPT_DIR/.." && pwd)"
 KICKOFF_ARTIFACT="$(abspath "${POSITIONAL[0]}")"
 DELIVERY_STATE="$(abspath "${POSITIONAL[1]}")"
 
@@ -110,6 +116,30 @@ if [[ ! -f "$KICKOFF_ARTIFACT" ]]; then
 fi
 if [[ ! -f "$DELIVERY_STATE" ]]; then
   echo "error: delivery state not found: $DELIVERY_STATE" >&2
+  exit 1
+fi
+
+if [[ -n "$REPO_ROOT_ARG" ]]; then
+  REPO_ROOT="$(abspath "$REPO_ROOT_ARG")"
+else
+  state_repo="$(python3 - "$DELIVERY_STATE" <<'PY'
+import json, sys
+try:
+    with open(sys.argv[1], 'r', encoding='utf-8') as f:
+        data = json.load(f)
+    print(data.get('repo') or '')
+except Exception:
+    print('')
+PY
+)"
+  if [[ -n "$state_repo" ]]; then
+    REPO_ROOT="$(abspath "$state_repo")"
+  else
+    REPO_ROOT="$(pwd)"
+  fi
+fi
+if [[ ! -d "$REPO_ROOT/.git" && ! -f "$REPO_ROOT/.git" ]]; then
+  echo "error: repo root is not a git checkout: $REPO_ROOT" >&2
   exit 1
 fi
 

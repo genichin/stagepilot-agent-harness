@@ -151,7 +151,20 @@ else
     echo "error: helper script not executable: $PREPARE_WORKTREE_SCRIPT" >&2
     exit 1
   fi
-  prep_args=("$KICKOFF_ARTIFACT" "$DELIVERY_STATE" --base-ref "$BASE_REF")
+  TARGET_REPO_ROOT="$(python3 - "$DELIVERY_STATE" <<'PY'
+import json, sys
+try:
+    with open(sys.argv[1], 'r', encoding='utf-8') as f:
+        data = json.load(f)
+    print(data.get('repo') or '')
+except Exception:
+    print('')
+PY
+)"
+  if [[ -z "$TARGET_REPO_ROOT" ]]; then
+    TARGET_REPO_ROOT="$(pwd)"
+  fi
+  prep_args=("$KICKOFF_ARTIFACT" "$DELIVERY_STATE" --repo-root "$TARGET_REPO_ROOT" --base-ref "$BASE_REF")
   if [[ -n "$BRANCH_NAME" ]]; then prep_args+=(--branch-name "$BRANCH_NAME"); fi
   if [[ -n "$WORKTREE_PATH" ]]; then prep_args+=(--worktree-path "$WORKTREE_PATH"); fi
   if [[ "$DRY_RUN" -eq 1 ]]; then prep_args+=(--dry-run); fi
