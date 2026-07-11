@@ -258,7 +258,7 @@ import json, sys
 path = sys.argv[1]
 with open(path, 'r', encoding='utf-8') as f:
     data = json.load(f)
-state = str(data.get('state', 'missing'))
+state = str(data.get('state', data.get('status', 'missing')))
 stage = str(data.get('current_stage', 'missing'))
 print(json.dumps({'state': state, 'current_stage': stage}, ensure_ascii=False))
 PY
