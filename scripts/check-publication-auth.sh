@@ -70,11 +70,17 @@ if [[ -z "$BRANCH" ]]; then
 fi
 
 set +e
-gh_status_output=$(gh auth status 2>&1)
+auth_home="${STAGEPILOT_GH_HOME:-${HOME:-}}"
+gh_status_output=$(HOME="$auth_home" gh auth status 2>&1)
 gh_status_rc=$?
-ls_remote_output=$(git ls-remote origin 2>&1)
+if [[ "$gh_status_rc" -ne 0 && -f /home/ubuntu/.config/gh/hosts.yml ]]; then
+  auth_home="/home/ubuntu"
+  gh_status_output=$(HOME="$auth_home" gh auth status 2>&1)
+  gh_status_rc=$?
+fi
+ls_remote_output=$(HOME="$auth_home" git ls-remote origin 2>&1)
 ls_remote_rc=$?
-push_output=$(git push --dry-run origin "HEAD:refs/heads/$BRANCH" 2>&1)
+push_output=$(HOME="$auth_home" git push --dry-run origin "HEAD:refs/heads/$BRANCH" 2>&1)
 push_rc=$?
 set -e
 
@@ -97,6 +103,7 @@ if [[ "$JSON" -eq 1 ]]; then
   export BRANCH_NAME="$BRANCH"
   export CLASSIFICATION="$classification"
   export REASON="$reason"
+  export AUTH_HOME_USED="$auth_home"
   export GH_STATUS_RC="$gh_status_rc"
   export GH_STATUS_OUTPUT="$gh_status_output"
   export LS_REMOTE_RC="$ls_remote_rc"
@@ -113,6 +120,7 @@ payload = {
     'branch': os.environ['BRANCH_NAME'],
     'classification': os.environ['CLASSIFICATION'],
     'reason': os.environ['REASON'],
+    'auth_home_used': os.environ['AUTH_HOME_USED'],
     'checks': {
         'gh_auth_status': {'ok': int(os.environ['GH_STATUS_RC']) == 0, 'exit_code': int(os.environ['GH_STATUS_RC']), 'output': os.environ['GH_STATUS_OUTPUT']},
         'git_ls_remote_origin': {'ok': int(os.environ['LS_REMOTE_RC']) == 0, 'exit_code': int(os.environ['LS_REMOTE_RC']), 'output': os.environ['LS_REMOTE_OUTPUT']},
