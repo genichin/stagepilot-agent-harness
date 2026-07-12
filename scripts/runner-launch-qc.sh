@@ -181,7 +181,7 @@ run_supervised() {
   log_file="$worktree_root/.stagepilot/worker-logs/${session_name}.log"
   exit_file="$worktree_root/.stagepilot/worker-logs/${session_name}.exit"
   run_script=$(printf '%q ' "${supervisor_cmd[@]}")
-  tmux new-session -d -s "$session_name" "bash -lc $(printf '%q' "$run_script > $(printf '%q' "$log_file") 2>&1; status=$?; printf \"%s\\n\" \"$status\" > $(printf '%q' "$exit_file")")"
+  tmux new-session -d -s "$session_name" "bash -lc $(printf '%q' "$run_script > $(printf '%q' "$log_file") 2>&1; status=\$?; printf \"%s\\n\" \"\$status\" > $(printf '%q' "$exit_file")")"
 
   echo "started: true"
   echo "background: true"
