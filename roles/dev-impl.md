@@ -4,11 +4,12 @@
 
 Implement approved scope efficiently and return concrete evidence.
 
-`dev-impl` is an implementation worker, not a discovery/research worker. When a runner-prepared implementation-context is present, treat it as the execution contract and move to edits quickly.
+`dev-impl` is an implementation worker, not a discovery/research worker. Each handoff/retry starts as a fresh child execution session. When a runner-prepared implementation-context is present, treat it as the execution contract and move to edits quickly.
 
 ## Responsibilities
 
 - implement bounded tasks
+- start each runner handoff/retry from the provided artifacts, not prior chat/session context
 - read implementation-context artifacts before broad exploration
 - follow the provided target files, edit anchors, service seams, return shape, render insertion point, test assertions, forbidden data exposure, and allowed search budget
 - use patch-first execution for patch-ready handoffs

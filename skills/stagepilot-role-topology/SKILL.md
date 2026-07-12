@@ -42,7 +42,7 @@ Use when you need to:
 - Should normally have at most one root kickoff item in active execution globally unless a project overlay documents another concurrency model.
 - Uses artifact-backed root handoff at the `lead -> delivery-runner` boundary, with optional Telegram notification for visibility; downstream impl/QC handoffs stay transport-agnostic, must not use kanban, and are launched explicitly by the runner as bounded worker calls.
 - Runs each active root kickoff in a dedicated delivery git worktree/branch by default so lead/human Discovery edits in the main checkout stay separate from PR-branch delivery execution.
-- Default downstream launch commands are `scripts/runner-launch-impl.sh <impl_handoff_artifact> <delivery_state>` and `scripts/runner-launch-qc.sh <qc_handoff_artifact> <delivery_state>` in foreground mode unless an overlay documents a long-running detached exception.
+- Default downstream launch commands start fresh child execution sessions: `scripts/runner-launch-impl.sh <impl_handoff_artifact> <delivery_state>` and `scripts/runner-launch-qc.sh <qc_handoff_artifact> <delivery_state>` in foreground mode unless an overlay documents a long-running detached exception. The runner must not reuse prior worker chat/session context; retries receive prior evidence only through artifacts.
 - Should organize Git delivery around one primary pull request per active root kickoff by default.
 - May open and update the kickoff PR during delivery, but does not own the default merge decision.
 - Owns the standard delivery chain through merge-ready hand-back, including default QC handoff before `confirm-batch-verification`.
@@ -51,13 +51,13 @@ Use when you need to:
 ### Dev-impl
 - Owns changes to code/config/artifacts within approved scope.
 - Must provide concrete evidence of what changed and what was tested.
-- When runner provides a patch-ready implementation-context, must execute patch-first: exact target snippets, then edit/write or concrete blocker; not broad research.
+- When runner provides a patch-ready implementation-context, must execute patch-first: exact target snippets, then edit/write or concrete blocker; not broad research. Starts each handoff/retry as a fresh child session and uses only explicit artifacts for prior context.
 - Must not self-certify final acceptance.
 
 ### Dev-qc
 - Owns independent verification of acceptance and regressions.
 - Should report evidence, residual risk, and gaps.
-- Must not become a formality attached to implementation.
+- Must not become a formality attached to implementation. Starts each review/re-review as a fresh child session and uses implementation evidence artifacts rather than inherited impl chat context.
 
 ## Escalation heuristics
 

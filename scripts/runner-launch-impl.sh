@@ -220,6 +220,8 @@ fi
 prompt=$(cat <<EOF
 Execute the implementation handoff as dev-impl.
 
+FRESH CHILD SESSION: treat this as a new worker execution. Do not rely on prior chat/session context from runner or earlier impl attempts; use only the artifacts named below and linked evidence paths.
+
 impl_handoff_artifact: $impl_handoff
 delivery_state: $delivery_state
 implementation_context: ${implementation_context:-not-provided}

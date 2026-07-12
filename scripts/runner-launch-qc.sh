@@ -105,6 +105,8 @@ mkdir -p "$(dirname "$progress_artifact")"
 prompt=$(cat <<EOF
 Execute the QC handoff as dev-qc.
 
+FRESH CHILD SESSION: treat this as a new independent QC execution. Do not rely on prior impl/QC chat context; use only the artifacts named below and linked evidence paths.
+
 qc_handoff_artifact: $qc_handoff
 delivery_state: $delivery_state
 progress_artifact: $progress_artifact

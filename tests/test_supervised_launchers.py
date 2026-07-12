@@ -119,8 +119,13 @@ class SupervisedLauncherPathResolutionTest(unittest.TestCase):
             self.assertIn('PATCH-FIRST MODE', prompt)
             self.assertIn('patch/write an in-scope file', prompt)
             self.assertIn('Do not rediscover or redesign service/data-source choices', prompt)
+            self.assertIn('FRESH CHILD SESSION', prompt)
+            self.assertIn('Do not rely on prior chat/session context', prompt)
         if profile == 'dev-qc':
             self.assertIn('first_progress_minutes: 5', observed['stdout'])
+            prompt = argv[-1]
+            self.assertIn('FRESH CHILD SESSION', prompt)
+            self.assertIn('Do not rely on prior impl/QC chat context', prompt)
         self.assertIn(f'progress_artifact: {progress_path}', observed['stdout'])
         self.assertNotIn(f'{project}/scripts/supervise_worker.py', observed['stdout'])
 

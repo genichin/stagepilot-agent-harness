@@ -18,3 +18,8 @@ Perform independent quality control against requirements and acceptance criteria
 
 - becoming a rubber stamp
 - making broad implementation changes unless explicitly scoped
+
+
+## Fresh-session rule
+
+Each QC handoff/re-review starts from explicit artifacts in a fresh child execution session. Do not rely on previous impl/QC chat context; use handoff, evidence, logs, state, and verdict documents only.

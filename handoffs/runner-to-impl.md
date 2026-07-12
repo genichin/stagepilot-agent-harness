@@ -50,3 +50,8 @@ Implementation should return changed files, executed checks, and any remaining r
 
 - Minimum return payload: changed files, commands/checks run, evidence paths, residual risks/blockers.
 - If implementation cannot proceed, it should return a concrete `blocked` reason rather than silently timing out or waiting indefinitely.
+
+
+## Fresh child session rule
+
+- Each `delivery-runner -> dev-impl` handoff, retry, or rework starts a fresh child execution session. Do not continue a previous `dev-impl` chat; pass prior attempt evidence only by artifact paths.

@@ -84,6 +84,23 @@ The readiness gate checks:
 
 A runner may use `--no-readiness-gate` only for a documented trivial/manual exception. The exception reason must be recorded in the delivery trail.
 
+
+## Fresh child session rule
+
+Each `delivery-runner -> dev-impl` handoff, retry, or rework must start a fresh child execution session. The worker must not depend on previous chat/session state from the runner or an earlier impl attempt.
+
+Allowed continuity is artifact-only:
+
+- implementation handoff
+- implementation-context
+- delivery state / batch queue
+- progress artifact
+- previous final-result/log paths
+- rework handoff or QC verdict document
+- git diff/status in the delivery worktree
+
+Do not paste whole previous conversations into the child prompt. Summarize only the minimum needed facts in a new handoff artifact and link evidence paths. This keeps impl reproducible, auditable, and insulated from runner/QC role context.
+
 ## Worker prompt contract
 
 `dev-impl` must:
