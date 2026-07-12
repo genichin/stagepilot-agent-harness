@@ -4,7 +4,7 @@ set -euo pipefail
 usage() {
   cat <<'EOF'
 Usage:
-  scripts/runner-launch-qc.sh [--supervised] [--checkpoint-minutes N] [--max-minutes N] [--progress-artifact PATH] [--background] [--session-name NAME] <qc_handoff_artifact> <delivery_state>
+  scripts/runner-launch-qc.sh [--supervised] [--checkpoint-minutes N] [--max-minutes N] [--first-progress-minutes N] [--progress-artifact PATH] [--background] [--session-name NAME] <qc_handoff_artifact> <delivery_state>
 
 Default:
   Foreground bounded worker call using Hermes profile `dev-qc`.
@@ -13,6 +13,7 @@ Options:
   --supervised             Run under evidence-based checkpoint supervision.
   --checkpoint-minutes N   Supervised checkpoint interval in minutes (default: 10).
   --max-minutes N          Supervised hard runtime cap in minutes (default: 60).
+  --first-progress-minutes N Stop if no progress artifact/evidence appears before this deadline in supervised mode (default: 5 for QC).
   --progress-artifact PATH Override the progress artifact path used in prompts/supervision.
   --background             Run in detached tmux instead of foreground.
   --session-name NAME      Override tmux session name for background mode.
@@ -26,6 +27,7 @@ session_name=""
 checkpoint_minutes="10"
 max_minutes="60"
 progress_artifact_override=""
+first_progress_minutes="5"
 args=()
 
 while [[ $# -gt 0 ]]; do
@@ -46,6 +48,11 @@ while [[ $# -gt 0 ]]; do
     --max-minutes)
       max_minutes=${2:-}
       [[ -n "$max_minutes" ]] || { echo "error: --max-minutes requires a value" >&2; exit 2; }
+      shift 2
+      ;;
+    --first-progress-minutes)
+      first_progress_minutes=${2:-}
+      [[ -n "$first_progress_minutes" ]] || { echo "error: --first-progress-minutes requires a value" >&2; exit 2; }
       shift 2
       ;;
     --progress-artifact)
@@ -103,6 +110,7 @@ delivery_state: $delivery_state
 progress_artifact: $progress_artifact
 
 Read both files first.
+You must create or update the progress artifact before the first-progress deadline (${first_progress_minutes} minute(s)) if no verdict has been returned yet. Do this before long-running checks or broad inspection.
 Return:
 1) verdict
 2) evidence reviewed
@@ -110,7 +118,7 @@ Return:
 4) required follow-up
 5) verdict count for the same acceptance scope if repeated
 If the issue is governance ambiguity, say it requires lead escalation.
-If you cannot complete within the first checkpoint window, update the progress artifact at:
+Progress artifact path:
 $progress_artifact
 Required progress fields:
 - current step
@@ -136,6 +144,7 @@ run_supervised() {
     --progress-artifact "$progress_artifact"
     --checkpoint-minutes "$checkpoint_minutes"
     --max-minutes "$max_minutes"
+    --first-progress-minutes "$first_progress_minutes"
     --
     hermes --profile dev-qc chat -q "$prompt"
   )
@@ -145,6 +154,7 @@ run_supervised() {
     echo "profile: dev-qc"
     echo "checkpoint_minutes: $checkpoint_minutes"
     echo "max_minutes: $max_minutes"
+    echo "first_progress_minutes: $first_progress_minutes"
     echo "qc_handoff_artifact: $qc_handoff"
     echo "delivery_state: $delivery_state"
     echo "progress_artifact: $progress_artifact"
@@ -168,6 +178,7 @@ run_supervised() {
   echo "profile: dev-qc"
   echo "checkpoint_minutes: $checkpoint_minutes"
   echo "max_minutes: $max_minutes"
+  echo "first_progress_minutes: $first_progress_minutes"
   echo "qc_handoff_artifact: $qc_handoff"
   echo "delivery_state: $delivery_state"
   echo "progress_artifact: $progress_artifact"

@@ -110,6 +110,8 @@ class SupervisedLauncherPathResolutionTest(unittest.TestCase):
             self.assertIn('first_progress_minutes: 2', observed['stdout'])
             self.assertIn('readiness_gate: 1', observed['stdout'])
             self.assertIn('implementation_context:', observed['stdout'])
+        if profile == 'dev-qc':
+            self.assertIn('first_progress_minutes: 5', observed['stdout'])
         self.assertIn(f'progress_artifact: {progress_path}', observed['stdout'])
         self.assertNotIn(f'{project}/scripts/supervise_worker.py', observed['stdout'])
 
