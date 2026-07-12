@@ -105,7 +105,7 @@ mkdir -p "$(dirname "$progress_artifact")"
 prompt=$(cat <<EOF
 Execute the QC handoff as dev-qc.
 
-FRESH CHILD SESSION: treat this as a new independent QC execution. Do not rely on prior impl/QC chat context; use only the artifacts named below and linked evidence paths.
+WORKER LANE SESSION: treat this as the current independent QC worker-lane execution. First review and re-review after implementation rework are fresh by default; same-verdict healthy continuation may reuse lane context. Use only the artifacts named below and linked evidence paths for prior context.
 
 qc_handoff_artifact: $qc_handoff
 delivery_state: $delivery_state

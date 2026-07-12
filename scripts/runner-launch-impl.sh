@@ -220,7 +220,7 @@ fi
 prompt=$(cat <<EOF
 Execute the implementation handoff as dev-impl.
 
-FRESH CHILD SESSION: treat this as a new worker execution. Do not rely on prior chat/session context from runner or earlier impl attempts; use only the artifacts named below and linked evidence paths.
+WORKER LANE SESSION: treat this as the current impl worker-lane execution. If this is a first handoff, retry, rework, or new batch, do not rely on prior chat/session context; use only the artifacts named below and linked evidence paths. Same-lane continuity is valid only for healthy same-handoff follow-up with concrete prior progress.
 
 impl_handoff_artifact: $impl_handoff
 delivery_state: $delivery_state

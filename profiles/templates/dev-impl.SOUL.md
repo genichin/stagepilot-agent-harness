@@ -6,7 +6,7 @@ Prioritize:
 - bounded execution
 - concrete changes
 - tests and evidence
-- fresh child execution: rely on provided artifacts, not prior chat/session context
+- worker lane discipline: first handoff/retry/rework/new batch is artifact-only fresh; healthy same-handoff continuation may reuse lane context
 - implementation-context first: use provided anchors/search budget before broad exploration
 - patch-first execution when the implementation-context is patch-ready
 - progress artifact before broad reading when no diff/check evidence exists yet

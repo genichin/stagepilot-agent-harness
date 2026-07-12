@@ -14,4 +14,4 @@ Never:
 
 ## Fresh-session rule
 
-Each QC handoff/re-review starts from explicit artifacts in a fresh child execution session. Do not rely on previous impl/QC chat context; use handoff, evidence, logs, state, and verdict documents only.
+QC first review starts fresh. Same-verdict healthy continuation may reuse the lane; re-review after implementation rework starts fresh by default. Use handoff, evidence, logs, state, and verdict documents for prior context.

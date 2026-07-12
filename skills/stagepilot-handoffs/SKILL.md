@@ -78,7 +78,7 @@ Must include:
 - evidence expected back from impl
 
 Default execution rule:
-- runner explicitly launches a fresh child execution session with `scripts/runner-launch-impl.sh <impl_handoff_artifact> <delivery_state>` for short/simple bounded work
+- runner explicitly launches a worker execution with `scripts/runner-launch-impl.sh <impl_handoff_artifact> <delivery_state>` for short/simple bounded work; the first impl handoff for a batch starts fresh
 - for non-trivial implementation handoffs, prefer `scripts/runner-launch-impl.sh --supervised --implementation-context <implementation_context> <impl_handoff_artifact> <delivery_state>`
 - supervised implementation handoffs require a runner-prepared implementation-context artifact by default; it must include Target files, Edit anchors, Service seams, Return shape, Render insertion point, Test assertions, Forbidden data exposure, Allowed search budget, Validation commands, and First progress deadline sections; non-applicable sections must say `N/A` with a reason
 - launchers are expected to run in place from the harness repo (often by absolute path) while the runner cwd stays in the target delivery worktree; helper scripts resolve relative to the launcher location, while worker `--workdir`, git evidence, and progress artifacts stay rooted in the target worktree
@@ -89,7 +89,7 @@ Default execution rule:
 - if the work remains genuinely atomic and still cannot reasonably fit inside the default 60-minute supervised cap, use only an explicit long-run supervised exception with larger checkpoint/runtime values and recorded early-progress evidence expectations
 - `scripts/runner-launch-impl.sh` supports `--preset default|stretched|long-run` for the standard supervision budgets; explicit minute flags may still override when a justified nonstandard budget is needed
 - `--background` remains optional only for materially long-running or resumable child work
-- each impl handoff/retry/rework must start a fresh child execution session; do not continue an earlier `dev-impl` chat. Prior attempts may be referenced only through explicit artifacts such as progress, final-result, logs, state, or rework handoff documents.
+- worker lane policy: a healthy same-handoff impl continuation may reuse the same lane only when batch, handoff/context, and acceptance scope are unchanged and the previous execution produced concrete progress; any retry/error/blocker/timeout/compaction/no-progress/failed-validation rework/new batch must start fresh, with prior attempts referenced only through explicit artifacts such as progress, final-result, logs, state, QC verdict, or rework handoff documents.
 
 ### delivery-runner -> dev-qc
 Must include:
@@ -102,12 +102,12 @@ Must include:
 - rules for fail vs conditional pass vs pass
 
 Default execution rule:
-- runner explicitly launches a fresh child execution session with `scripts/runner-launch-qc.sh <qc_handoff_artifact> <delivery_state>` for short/simple bounded review work
+- runner explicitly launches a worker execution with `scripts/runner-launch-qc.sh <qc_handoff_artifact> <delivery_state>` for short/simple bounded review work; the first QC handoff for a verification target starts fresh
 - for non-trivial QC handoffs, prefer `scripts/runner-launch-qc.sh --supervised <qc_handoff_artifact> <delivery_state>`
 - supervised mode checkpoints git/progress evidence and extends only on concrete progress; heartbeat-only output does not qualify
 - first-progress and early compaction/read-loop guards stop token-burning before the ordinary checkpoint when no concrete evidence appears
 - `--background` remains optional only for materially long-running or resumable child work
-- each QC handoff/retry/re-review must start a fresh child execution session; do not continue an earlier `dev-qc` or `dev-impl` chat. Prior implementation evidence and previous verdicts must be provided as explicit artifacts, preserving QC independence.
+- QC lane policy: same-session continuation is allowed only within the same active verdict run while checks are healthy and no rework/error occurred. First review is fresh; re-review after implementation rework is fresh by default. Previous implementation evidence and verdicts must be provided as explicit artifacts, preserving QC independence.
 
 ### delivery-runner -> lead escalation
 Must include:
@@ -146,7 +146,7 @@ If a completion summary is sent, it should include:
 
 ## Writing rules
 
-1. Assume the receiving role has no hidden chat context and will start from a fresh child execution session.
+1. Assume the receiving role has no hidden chat context beyond the current worker lane; for a fresh handoff/retry/new batch, all continuity must be explicit artifacts.
 2. Prefer bulletized fields over prose blobs.
 3. Separate facts, evidence, and recommendations.
 4. If a handover changes authority, treat it as escalation.

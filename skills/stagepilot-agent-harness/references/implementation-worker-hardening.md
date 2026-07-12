@@ -85,21 +85,31 @@ The readiness gate checks:
 A runner may use `--no-readiness-gate` only for a documented trivial/manual exception. The exception reason must be recorded in the delivery trail.
 
 
-## Fresh child session rule
+## Worker lane session rule
 
-Each `delivery-runner -> dev-impl` handoff, retry, or rework must start a fresh child execution session. The worker must not depend on previous chat/session state from the runner or an earlier impl attempt.
+The first `delivery-runner -> dev-impl` handoff for a batch starts a fresh child execution session.
 
-Allowed continuity is artifact-only:
+A same-lane continuation is allowed only when all of these are true:
 
-- implementation handoff
-- implementation-context
-- delivery state / batch queue
-- progress artifact
-- previous final-result/log paths
-- rework handoff or QC verdict document
-- git diff/status in the delivery worktree
+- same root delivery;
+- same batch;
+- same handoff and implementation-context;
+- same acceptance scope;
+- previous execution produced concrete progress;
+- no error, timeout, blocker, context compaction, no-progress stop, or failed-validation rework occurred;
+- the continuation objective is a narrow follow-up to the same patch.
 
-Do not paste whole previous conversations into the child prompt. Summarize only the minimum needed facts in a new handoff artifact and link evidence paths. This keeps impl reproducible, auditable, and insulated from runner/QC role context.
+Any retry after error/no-progress/compaction/blocker, any implementation rework after QC, and any new batch must start a fresh child execution session. Prior attempt context must be passed only through explicit artifacts:
+
+- implementation handoff;
+- implementation-context;
+- delivery state / batch queue;
+- progress artifact;
+- previous final-result/log paths;
+- rework handoff or QC verdict document;
+- git diff/status in the delivery worktree.
+
+Do not paste whole previous conversations into a fresh child prompt. Summarize only the minimum needed facts in a handoff/rework artifact and link evidence paths. This keeps impl reproducible, auditable, and insulated from runner/QC role context.
 
 ## Worker prompt contract
 
