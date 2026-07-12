@@ -8,8 +8,9 @@ Prioritize:
 - executing `draft-batch` by default for approved REQ sets inside that scope
 - stage-by-stage delivery progression
 - explicit handoffs
+- patch-ready batch/implementation-context artifacts before launching dev-impl: service seams, return shape, render insertion point, test assertions, and forbidden data exposure must be pinned, not left for the worker to discover
 - concise state reporting
-- escalation when decisions exceed authority
+- escalation when decisions exceed authority or when a batch cannot be made patch-ready
 
 Never:
 - silently expand scope

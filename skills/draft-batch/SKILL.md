@@ -85,6 +85,7 @@ This skill creates a new batch delivery unit from approved requirements selected
 - REQ 묶음 선택이 아직 불안정하거나 대안 비교가 필요하면 batch를 생성하지 말고 먼저 `suggest-batch-reqs`로 되돌린다.
 - `docs/batches/index.md`의 register는 새 batch 생성과 함께 반드시 갱신한다.
 - Discovery-level root queue에서 생성된 batch는 batch 문서에 `Root Delivery`, `Source Discovery`, `Queue Item`, included REQ, deferred/excluded sibling REQ를 기록해야 한다.
+- 새 batch 문서에는 다음 implementation readiness seed를 남겨야 한다: expected target area, likely service/adapter seam, expected data/return shape, render/API insertion point, representative test assertions, forbidden data exposure, and known open questions. 아직 확정할 수 없으면 `TBD`로 넘기지 말고 lead escalation 또는 design/planning blocker로 기록한다.
 - register 행에는 최소한 `BAT ID`, `Profile`, `Status`, `Included REQ`, `Discovery`, `Folder`를 채운다.
 - source discovery는 포함 REQ에서 역추적해 채운다. source가 하나면 그대로 기록하고, 여러 source discovery가 섞이면 축약 표기와 함께 batch 문서 Notes에 설명한다.
 - 사용자가 `dcy-XXX`처럼 Discovery ID만 주면 임의로 REQ를 추측하지 않는다. 먼저 해당 Discovery가 confirmed인지 확인하고, `docs/srs/**/req-*.md`에서 `Source Discovery`, `Notes`, 또는 `docs/srs/index.md` register를 통해 연결된 `Approved` REQ 목록을 수집한다. 연결 REQ가 없거나 일부만 `Approved`면 batch 생성 전에 blocker로 보고한다.
@@ -103,6 +104,7 @@ This skill creates a new batch delivery unit from approved requirements selected
 7. 배치 제목과 slug를 결정하고 다음 `BAT-ID`를 계산한다.
 8. profile에 맞는 템플릿으로 batch 폴더와 문서를 생성하되, placeholder를 그대로 두지 말고 이번 REQ 집합 기준의 구체적 초안 내용을 즉시 채운다.
 9. `index.md`에 `Profile`, Included REQ, Excluded REQ, Source Discovery, Scope, Documents, Notes를 채운다. Discovery-level root에서 온 경우 `Root Delivery`와 `Queue Item`도 채운다.
+9a. `planning.md` 또는 batch notes에 implementation readiness seed를 채운다: target area, service/adapter seam, return/data shape, render/API insertion point, representative test assertions, forbidden data exposure, and open questions/escalations. 이 seed가 비어 있으면 나중의 `implementation-context`가 파일-anchor 수준으로 퇴화한다.
 10. 포함 REQ의 source discovery를 수집해 `index.md`와 register에 반영한다. source가 복수면 Notes에 혼합 배경을 설명한다. Discovery 식별자로 시작한 경우, batch 문서에 해당 Discovery ID와 포함 REQ 목록이 모두 일치하는지 명시적으로 검증한다.
 11. `planning.md`에 `Design Gate`를 기록해 design이 즉시 필요한지 여부와 근거를 남긴다.
 12. `docs/batches/index.md`에 새 register 행을 추가하고 `BAT ID`, `Profile`, `Status`, `Included REQ`, `Discovery`, `Folder`를 실제 생성 결과와 일치하게 채운다. 이때 register의 헤더/구분선/행 순서는 현재 저장소 로컬 형식을 유지한다.

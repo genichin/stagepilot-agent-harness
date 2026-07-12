@@ -80,7 +80,7 @@ Must include:
 Default execution rule:
 - runner explicitly launches `scripts/runner-launch-impl.sh <impl_handoff_artifact> <delivery_state>` for short/simple bounded work
 - for non-trivial implementation handoffs, prefer `scripts/runner-launch-impl.sh --supervised --implementation-context <implementation_context> <impl_handoff_artifact> <delivery_state>`
-- supervised implementation handoffs require a runner-prepared implementation-context artifact by default; it must include Target files, Edit anchors, Allowed search budget, Validation commands, and First progress deadline sections
+- supervised implementation handoffs require a runner-prepared implementation-context artifact by default; it must include Target files, Edit anchors, Service seams, Return shape, Render insertion point, Test assertions, Forbidden data exposure, Allowed search budget, Validation commands, and First progress deadline sections; non-applicable sections must say `N/A` with a reason
 - launchers are expected to run in place from the harness repo (often by absolute path) while the runner cwd stays in the target delivery worktree; helper scripts resolve relative to the launcher location, while worker `--workdir`, git evidence, and progress artifacts stay rooted in the target worktree
 - supervised mode checkpoints git/progress evidence and extends only on concrete progress; heartbeat-only output does not qualify
 - first-progress and early compaction/read-loop guards stop token-burning before the ordinary checkpoint when no concrete evidence appears

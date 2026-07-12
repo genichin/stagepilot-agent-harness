@@ -35,6 +35,11 @@ class SupervisedLauncherPathResolutionTest(unittest.TestCase):
                 '# Implementation context\n\n'
                 '## Target files\n- tracked.txt\n\n'
                 '## Edit anchors\n- tracked.txt: beginning of file\n\n'
+                '## Service seams\n- N/A; direct file edit only.\n\n'
+                '## Return shape\n- N/A; no data contract change.\n\n'
+                '## Render insertion point\n- N/A; no UI render insertion.\n\n'
+                '## Test assertions\n- existing tracked.txt assertion remains representative.\n\n'
+                '## Forbidden data exposure\n- N/A; no sensitive data path.\n\n'
                 '## Allowed search budget\n- No broad search unless listed anchors fail.\n\n'
                 '## Validation commands\n- python3 -m pytest -q\n\n'
                 '## First progress deadline\n- 2 minutes; write progress artifact before broad reading.\n',
@@ -137,6 +142,11 @@ class SupervisedLauncherPathResolutionTest(unittest.TestCase):
                 '# Implementation context\n\n'
                 '## Target files\n- tracked.txt\n\n'
                 '## Edit anchors\n- tracked.txt: beginning of file\n\n'
+                '## Service seams\n- N/A; direct file edit only.\n\n'
+                '## Return shape\n- N/A; no data contract change.\n\n'
+                '## Render insertion point\n- N/A; no UI render insertion.\n\n'
+                '## Test assertions\n- existing tracked.txt assertion remains representative.\n\n'
+                '## Forbidden data exposure\n- N/A; no sensitive data path.\n\n'
                 '## Allowed search budget\n- No broad search unless listed anchors fail.\n\n'
                 '## Validation commands\n- python3 -m pytest -q\n\n'
                 '## First progress deadline\n- 2 minutes.\n',
@@ -179,6 +189,50 @@ class SupervisedLauncherPathResolutionTest(unittest.TestCase):
             argv = json.loads(capture_file.read_text(encoding='utf-8'))
             self.assertEqual(argv[0], str(SUPERVISE))
             self.assertIn('--first-progress-minutes', argv)
+
+    def test_impl_readiness_gate_requires_data_contract_headings(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp_path = Path(tmp)
+            project = tmp_path / 'project'
+            bin_dir = tmp_path / 'bin'
+            bin_dir.mkdir(parents=True)
+            project.mkdir()
+            subprocess.run(['git', 'init', '-q'], cwd=project, check=True)
+            delivery_dir = project / '.stagepilot' / 'delivery' / 'case'
+            delivery_dir.mkdir(parents=True)
+            handoff = delivery_dir / 'impl-handoff.md'
+            state = delivery_dir / 'state.json'
+            context = delivery_dir / 'impl-handoff-implementation-context.md'
+            handoff.write_text('stub handoff\n', encoding='utf-8')
+            state.write_text('{}\n', encoding='utf-8')
+            context.write_text(
+                '# Implementation context\n\n'
+                '## Target files\n- tracked.txt\n\n'
+                '## Edit anchors\n- tracked.txt: beginning of file\n\n'
+                '## Allowed search budget\n- No broad search.\n\n'
+                '## Validation commands\n- python3 -m pytest -q\n\n'
+                '## First progress deadline\n- 2 minutes.\n',
+                encoding='utf-8',
+            )
+            hermes_stub = bin_dir / 'hermes'
+            hermes_stub.write_text('#!/usr/bin/env bash\nexit 0\n', encoding='utf-8')
+            hermes_stub.chmod(0o755)
+            env = os.environ.copy()
+            env['PATH'] = f"{bin_dir}:{env['PATH']}"
+            result = subprocess.run(
+                [str(IMPL), '--supervised', str(handoff), str(state)],
+                cwd=project,
+                env=env,
+                text=True,
+                capture_output=True,
+                check=False,
+            )
+            self.assertEqual(result.returncode, 4)
+            self.assertIn('## Service seams', result.stderr)
+            self.assertIn('## Return shape', result.stderr)
+            self.assertIn('## Render insertion point', result.stderr)
+            self.assertIn('## Test assertions', result.stderr)
+            self.assertIn('## Forbidden data exposure', result.stderr)
 
     def test_qc_supervised_launcher_uses_harness_helper_and_target_worktree(self) -> None:
         observed = self.run_launcher(QC, 'qc-handoff.md')

@@ -6,7 +6,7 @@ This handoff is transport-agnostic. It may be issued through ordinary runner-to-
 
 - Default launch mode is foreground bounded worker execution.
 - For non-trivial implementation handoffs, the preferred foreground path is supervised checkpoint execution via `scripts/runner-launch-impl.sh --supervised --implementation-context <implementation_context> <impl_handoff_artifact> <delivery_state>`.
-- Supervised implementation launches require an implementation-context artifact by default. It must identify Target files, Edit anchors, Allowed search budget, Validation commands, and First progress deadline before the worker starts.
+- Supervised implementation launches require an implementation-context artifact by default. It must identify Target files, Edit anchors, Service seams, Return shape, Render insertion point, Test assertions, Forbidden data exposure, Allowed search budget, Validation commands, and First progress deadline before the worker starts; non-applicable sections must say `N/A` with a reason.
 - The launcher is expected to run in place from the harness repo (often by absolute path) even when the runner cwd is the target delivery worktree; helper scripts resolve relative to the launcher location, while worker `--workdir`, git evidence, and progress artifacts stay rooted in the target worktree.
 - The runner may still use `scripts/runner-launch-impl.sh <impl_handoff_artifact> <delivery_state>` for short/simple bounded work.
 - The wrapper runs `hermes --profile dev-impl chat -q ...`; in supervised mode it checkpoints progress every N minutes and extends only when concrete evidence exists. It also stops early on first-progress deadline miss, repeated context compaction, or read/search loops without write/diff/progress evidence.

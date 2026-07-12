@@ -189,6 +189,11 @@ validate_implementation_context() {
   for heading in \
     "## Target files" \
     "## Edit anchors" \
+    "## Service seams" \
+    "## Return shape" \
+    "## Render insertion point" \
+    "## Test assertions" \
+    "## Forbidden data exposure" \
     "## Allowed search budget" \
     "## Validation commands" \
     "## First progress deadline"; do
@@ -221,9 +226,10 @@ implementation_context: ${implementation_context:-not-provided}
 progress_artifact: $progress_artifact
 
 Read the implementation_context first when provided, then the handoff and delivery state.
-The implementation_context is the bounded source of edit anchors and search budget.
-Do not broad-search the repository unless a listed anchor is invalid; if an anchor is invalid, write a concrete blocker to the progress artifact and stop.
-Before broad reading, create/update the progress artifact with the current step, inspected files, intended anchors, and next concrete step.
+The implementation_context is the bounded source of edit anchors, service seams, return shape, render insertion point, test assertions, forbidden data exposure, and search budget.
+Do not invent service/data-source choices outside the context. If the required seam, return shape, render insertion point, or test assertion is missing/invalid, write a concrete blocker to the progress artifact and stop instead of broad-searching.
+Do not broad-search the repository unless a listed anchor is invalid and the context explicitly permits that search; if an anchor is invalid, write a concrete blocker to the progress artifact and stop.
+Before broad reading, create/update the progress artifact with the current step, inspected files, intended anchors/seams, and next concrete step.
 Stay within the approved scope in the handoff.
 Return:
 1) changed files

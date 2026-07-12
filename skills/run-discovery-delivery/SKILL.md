@@ -129,7 +129,7 @@ One completed batch is not enough to mark the Discovery root `done` if other App
 7. If no remaining `Approved` REQ exists, verify all linked REQs are `Implemented` or explicitly excluded/deferred, then mark/report Discovery root done or no-op.
 8. Create or read the Discovery root state under `.stagepilot/delivery/<dcy-id>_<slug>/`.
 9. If no queue exists, run `suggest-batch-reqs` conceptually or explicitly for remaining Approved REQs and choose the default runner grouping inside approved scope.
-10. Use `draft-batch` for each selected queue item, recording `Root Delivery`, `Source Discovery`, `Queue Item`, included REQs, and deferred/excluded siblings in the batch artifacts.
+10. Use `draft-batch` for each selected queue item, recording `Root Delivery`, `Source Discovery`, `Queue Item`, included REQs, deferred/excluded siblings, and implementation readiness seed (target area, likely service seam, return/data shape, render/API insertion point, representative test assertions, forbidden data exposure, and open questions) in the batch artifacts.
 11. Write/update `batch-queue.json` and root `state.json` with queue order, `current_batch`, `remaining_approved_reqs`, and `implemented_reqs`.
 12. Execute the first non-done queue item with `run-batch-delivery`.
 13. After each batch, inspect evidence and REQ status sync; update queue item status and root state.

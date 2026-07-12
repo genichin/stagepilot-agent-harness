@@ -121,7 +121,8 @@ This skill orchestrates the Delivery phase for one already-created batch by chai
 4. 첫 incomplete stage부터 시작해, blocker가 생길 때까지 다음 stage로 순차 진행한다.
 5. `draft-batch-planning`이 실행되면 범위, dependency, milestone, Design Gate가 채워졌는지 확인한다.
 6. `draft-batch-design`이 필요하면 architecture summary, changed areas, key decisions, architecture impact가 채워졌는지 확인한다.
-7. `run-batch-implementation` 후에는 구현 변경, execution log, validation, remaining risks가 기록됐는지 확인한다.
+7. Before `run-batch-implementation`, verify that the batch/impl handoff is patch-ready: target files, edit anchors, service seams, return shape, render insertion point, test assertions, forbidden data exposure, allowed search budget, validation commands, and first-progress expectations are explicit. If not, stop and improve/escalate the batch document rather than launching `dev-impl`.
+8. `run-batch-implementation` 후에는 구현 변경, execution log, validation, remaining risks가 기록됐는지 확인한다.
 8. `draft-batch-verification` 후에는 REQ acceptance criteria와 evidence mapping, blocking issues, baseline 동기화 evidence가 필요한 경우 그 항목이 채워졌는지 확인한다.
 9. 기본 경로라면 `confirm-batch-verification` 전에 `delivery-runner -> dev-qc` handoff를 수행하고 QC verdict를 반영한다. 단일 저위험 `batch-lite` 예외만 QC 생략 사유와 residual risk를 남긴 뒤 다음 단계로 간다.
 10. QC가 gap을 반환하면 먼저 원인을 `implementation defect` / `evidence gap` / `REQ ambiguity or governance issue`로 분류한다. 구현 결함과 evidence gap만 재작업 대상으로 돌리고, governance/REQ 문제는 즉시 `lead`로 escalate한다.
