@@ -27,6 +27,7 @@ RESULT_EXIT_CODES = {
     'first_progress_deadline_exceeded': 127,
     'early_context_compaction_loop': 128,
     'early_read_loop_no_diff': 129,
+    'supervisor_interrupted': 130,
 }
 
 
@@ -360,6 +361,7 @@ def main(argv: list[str]) -> int:
         'command': command,
         'command_display': shlex.join(command),
         'started_at': iso_now(),
+        'child_pid': None,
     }
     write_json(run_dir / 'metadata.json', metadata)
 
@@ -372,6 +374,18 @@ def main(argv: list[str]) -> int:
             text=True,
             start_new_session=True,
         )
+
+    metadata['child_pid'] = proc.pid
+    write_json(run_dir / 'metadata.json', metadata)
+
+    interrupted_signal: str | None = None
+
+    def request_interrupt(signum: int, _frame: object) -> None:
+        nonlocal interrupted_signal
+        interrupted_signal = signal.Signals(signum).name
+
+    old_sigterm = signal.signal(signal.SIGTERM, request_interrupt)
+    old_sigint = signal.signal(signal.SIGINT, request_interrupt)
 
     start = time.monotonic()
     previous = snapshot_state(workdir, progress_artifact, progress_dir)
@@ -402,6 +416,33 @@ def main(argv: list[str]) -> int:
     while True:
         rc = proc.poll()
         elapsed = time.monotonic() - start
+        if interrupted_signal is not None:
+            terminated_rc = terminate_process(proc)
+            if terminated_rc is not None:
+                child_exit_file.write_text(f'{terminated_rc}\n', encoding='utf-8')
+            current = snapshot_state(workdir, progress_artifact, progress_dir)
+            _signals = analyze_log(child_log)
+            result_class = 'supervisor_interrupted'
+            result_reason = f'supervisor received {interrupted_signal} before child completion'
+            stall_subtype = 'supervisor_interrupted'
+            stall_classification_reasons = [
+                f'context_compaction_markers={_signals.compact_hits}',
+                f'read_markers={_signals.read_hits}',
+                f'search_markers={_signals.search_hits}',
+                f'write_markers={_signals.write_hits}',
+                f'interrupted_signal={interrupted_signal}',
+            ]
+            last_progress_updates = progress_changes(previous, current)
+            last_evidence_reasons = []
+            if current.git_status != previous.git_status and current.git_status.strip():
+                last_evidence_reasons.append('git_status_changed')
+            if current.git_diff_stat != previous.git_diff_stat and current.git_diff_stat.strip():
+                last_evidence_reasons.append('git_diff_stat_changed')
+            if last_progress_updates:
+                last_evidence_reasons.append('progress_artifact_updated')
+            observed_progress = observed_progress or bool(last_evidence_reasons)
+            previous = current
+            break
         if rc is not None:
             child_exit_file.write_text(f'{rc}\n', encoding='utf-8')
             if rc == 0:
@@ -572,6 +613,7 @@ def main(argv: list[str]) -> int:
         'run_dir': str(run_dir),
         'log_file': str(child_log),
         'child_exit_file': str(child_exit_file),
+        'child_pid': proc.pid,
         'finished_at': finished_at,
     }
     write_json(final_result_file, final_payload)
@@ -598,6 +640,8 @@ def main(argv: list[str]) -> int:
     print(f'run_dir: {run_dir}')
     print(f'log_file: {child_log}')
     print(f'final_result_file: {final_result_file}')
+    signal.signal(signal.SIGTERM, old_sigterm)
+    signal.signal(signal.SIGINT, old_sigint)
     return shell_exit_code
 
 

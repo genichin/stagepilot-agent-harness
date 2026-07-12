@@ -88,7 +88,7 @@ Default execution rule:
 - if a slice is unlikely to finish within about 30 minutes, split it further before launch unless the work is genuinely atomic
 - if the work remains genuinely atomic and still cannot reasonably fit inside the default 60-minute supervised cap, use only an explicit long-run supervised exception with larger checkpoint/runtime values and recorded early-progress evidence expectations
 - `scripts/runner-launch-impl.sh` supports `--preset default|stretched|long-run` for the standard supervision budgets; explicit minute flags may still override when a justified nonstandard budget is needed
-- `--background` remains optional only for materially long-running or resumable child work
+- `--background` is the default/safe mode for supervised impl/QC; `--foreground-supervised` is an explicit short-runtime exception
 - worker lane policy: a healthy same-handoff impl continuation may reuse the same lane only when batch, handoff/context, and acceptance scope are unchanged and the previous execution produced concrete progress; any retry/error/blocker/timeout/compaction/no-progress/failed-validation rework/new batch must start fresh, with prior attempts referenced only through explicit artifacts such as progress, final-result, logs, state, QC verdict, or rework handoff documents.
 
 ### delivery-runner -> dev-qc
@@ -106,7 +106,7 @@ Default execution rule:
 - for non-trivial QC handoffs, prefer `scripts/runner-launch-qc.sh --supervised <qc_handoff_artifact> <delivery_state>`
 - supervised mode checkpoints git/progress evidence and extends only on concrete progress; heartbeat-only output does not qualify
 - first-progress and early compaction/read-loop guards stop token-burning before the ordinary checkpoint when no concrete evidence appears
-- `--background` remains optional only for materially long-running or resumable child work
+- `--background` is the default/safe mode for supervised impl/QC; `--foreground-supervised` is an explicit short-runtime exception
 - QC lane policy: same-session continuation is allowed only within the same active verdict run while checks are healthy and no rework/error occurred. First review is fresh; re-review after implementation rework is fresh by default. Previous implementation evidence and verdicts must be provided as explicit artifacts, preserving QC independence.
 
 ### delivery-runner -> lead escalation
@@ -168,3 +168,12 @@ If a completion summary is sent, it should include:
 - [ ] Escalations clearly state what authority is being requested.
 - [ ] Any completion summary separates results from residual risk.
 - [ ] Optional completion-summary behavior is not mistaken for the canonical required successful completion signal.
+
+
+### Supervised worker lifecycle integrity
+
+- Runner-owned supervised impl/QC calls should launch in background/tmux mode by default; foreground supervised execution is an explicit short-runtime exception only when the caller timeout is safely above the child max runtime.
+- The runner must poll the launcher `exit_file`, worker log, and supervisor `final-result.json`. If `final-result.json` is missing or has `result_class=supervisor_interrupted`, classify it as `supervisor_integrity_failure` / harness execution failure, not as implementation acceptance failure.
+- Child logs, diffs, and progress artifacts may be used as secondary evidence, but they do not replace the canonical supervisor final result.
+- If a completed implementation has a simple same-scope implementation-context mismatch (for example visible label or CTA wording), the runner may create a fresh bounded rework handoff without lead escalation. Escalate only when the contract itself is ambiguous, scope changes, or governance/product authority is needed.
+- Implementation contexts with user-visible copy requirements should include machine-checkable assertions such as required visible strings, forbidden visible strings, and required metric labels before QC handoff.

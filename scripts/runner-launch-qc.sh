@@ -4,10 +4,10 @@ set -euo pipefail
 usage() {
   cat <<'EOF'
 Usage:
-  scripts/runner-launch-qc.sh [--supervised] [--checkpoint-minutes N] [--max-minutes N] [--first-progress-minutes N] [--progress-artifact PATH] [--background] [--session-name NAME] <qc_handoff_artifact> <delivery_state>
+  scripts/runner-launch-qc.sh [--supervised] [--checkpoint-minutes N] [--max-minutes N] [--first-progress-minutes N] [--progress-artifact PATH] [--background] [--foreground-supervised] [--session-name NAME] <qc_handoff_artifact> <delivery_state>
 
 Default:
-  Foreground bounded worker call using Hermes profile `dev-qc`.
+  Unsupervised calls run foreground using Hermes profile `dev-qc`; supervised calls run detached/background unless --foreground-supervised is set.
 
 Options:
   --supervised             Run under evidence-based checkpoint supervision.
@@ -15,13 +15,15 @@ Options:
   --max-minutes N          Supervised hard runtime cap in minutes (default: 60).
   --first-progress-minutes N Stop if no progress artifact/evidence appears before this deadline in supervised mode (default: 5 for QC).
   --progress-artifact PATH Override the progress artifact path used in prompts/supervision.
-  --background             Run in detached tmux instead of foreground.
+  --background             Run in detached tmux instead of foreground. Supervised mode defaults to background unless --foreground-supervised is set.
+  --foreground-supervised  Allow supervised execution in the invoking foreground terminal; use only when max runtime is safely below the caller timeout.
   --session-name NAME      Override tmux session name for background mode.
   -h, --help               Show this help.
 EOF
 }
 
 background=0
+foreground_supervised=0
 supervised=0
 session_name=""
 checkpoint_minutes="10"
@@ -34,6 +36,10 @@ while [[ $# -gt 0 ]]; do
   case "$1" in
     --background)
       background=1
+      shift
+      ;;
+    --foreground-supervised)
+      foreground_supervised=1
       shift
       ;;
     --supervised)
@@ -112,6 +118,7 @@ delivery_state: $delivery_state
 progress_artifact: $progress_artifact
 
 Read both files first.
+If launcher/supervisor evidence is incomplete, separate harness execution integrity from implementation acceptance; do not collapse missing final-result into an implementation verdict.
 You must create or update the progress artifact before the first-progress deadline (${first_progress_minutes} minute(s)) if no verdict has been returned yet. Do this before long-running checks or broad inspection.
 Return:
 1) verdict
@@ -136,6 +143,9 @@ EOF
 )
 
 run_supervised() {
+  if [[ $foreground_supervised -eq 0 ]]; then
+    background=1
+  fi
   local -a supervisor_cmd=(
     python3 "$supervise_worker"
     --label qc
@@ -186,10 +196,12 @@ run_supervised() {
   echo "progress_artifact: $progress_artifact"
   echo "log_file: $log_file"
   echo "exit_file: $exit_file"
+  echo "poll: wait for exit_file and inspect final_result_file printed in log; missing final-result is supervisor_integrity_failure, not implementation acceptance"
 }
 
 if [[ $supervised -eq 1 ]]; then
   run_supervised
+  exit 0
 fi
 
 if [[ $background -eq 0 ]]; then

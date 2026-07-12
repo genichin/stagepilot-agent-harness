@@ -200,6 +200,40 @@ class SuperviseWorkerTests(unittest.TestCase):
         self.assertEqual(payload['stall_subtype'], 'read_loop_no_diff')
         self.assertEqual(payload['checkpoints_taken'], 0)
 
+    def test_sigterm_writes_interrupted_final_result(self) -> None:
+        progress = self.repo / '.stagepilot' / 'worker-progress' / 'interrupted.md'
+        proc = subprocess.Popen(
+            [
+                'python3', str(SCRIPT),
+                '--label', 'interrupted',
+                '--workdir', str(self.repo),
+                '--progress-artifact', str(progress),
+                '--checkpoint-minutes', '0.1',
+                '--max-minutes', '2',
+                '--', 'bash', '-lc', 'sleep 30',
+            ],
+            cwd=self.repo,
+            text=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+        )
+        import signal, time
+        time.sleep(0.8)
+        proc.send_signal(signal.SIGTERM)
+        stdout, stderr = proc.communicate(timeout=10)
+        self.assertEqual(proc.returncode, 130, msg=stdout + '\nSTDERR:\n' + stderr)
+        result_file = None
+        for line in stdout.splitlines():
+            if line.startswith('final_result_file: '):
+                result_file = Path(line.split(': ', 1)[1].strip())
+                break
+        self.assertIsNotNone(result_file, msg=stdout + '\nSTDERR:\n' + stderr)
+        assert result_file is not None
+        payload = json.loads(result_file.read_text(encoding='utf-8'))
+        self.assertEqual(payload['result_class'], 'supervisor_interrupted')
+        self.assertIn('SIGTERM', payload['result_reason'])
+        self.assertIsNotNone(payload['child_pid'])
+
 
 if __name__ == '__main__':
     unittest.main(verbosity=2)

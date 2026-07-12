@@ -67,7 +67,7 @@ Runtime provisioning is part of applying the harness: the repo's `skills/` catal
 - If an impl slice is unlikely to close within about 30 minutes, split it further before launch unless the work is genuinely atomic and further slicing would create worse context loss or rework.
 - If an impl task remains genuinely atomic and still cannot reasonably fit inside the default 60-minute supervised cap, the runner may use an explicit long-run supervised exception with a larger checkpoint/runtime budget, recorded early-progress evidence expectations, and a stated hard cap.
 - `scripts/runner-launch-impl.sh` supports `--preset default|stretched|long-run` for the standard supervision budgets; explicit minute flags may still override when a justified nonstandard budget is needed.
-- Default downstream mode remains foreground bounded execution; `--background` is optional only for materially long-running or resumable child work.
+- Default unsupervised short calls may remain foreground bounded execution, but supervised impl/QC calls default to background/tmux worker execution so the supervisor outlives invoking terminal timeouts; `--foreground-supervised` is an explicit short-runtime exception.
 - Unless a project overlay documents otherwise, a `delivery-runner` should have at most one root kickoff item in active execution globally.
 - By default, one root kickoff item maps to one primary pull request. Discovery-level root delivery is the explicit core exception: a confirmed Discovery root may own a batch queue and multiple batch PRs when the kickoff names the Approved/Implemented REQ set and the runner records queue state.
 - Early in a PR-bound kickoff, the runner should run publication auth preflight from the isolated delivery worktree before spending substantial impl/QC time. Standard helper: `scripts/check-publication-auth.sh --json`, which checks remote presence, `gh auth status`, `git ls-remote origin`, and `git push --dry-run origin HEAD:refs/heads/<current-branch>`.
@@ -124,4 +124,14 @@ Use this decision rule:
 ## References
 
 - `references/implementation-worker-hardening.md` — implementation-context artifact, readiness gate, first-progress deadline, and early compaction/read-loop stops for `runner -> dev-impl` execution.
+- `references/supervised-worker-lifecycle.md` — supervised impl/QC background execution, final-result integrity, interrupted supervisor classification, bounded rework autonomy, and machine-checkable acceptance guidance.
 - `references/worker-session-lanes.md` — nuanced runner→impl/QC session policy: fresh first handoff/retry/new batch, artifact-only continuity, and limited same-lane continuation for healthy same-scope follow-up.
+
+
+### Supervised worker lifecycle integrity
+
+- Runner-owned supervised impl/QC calls should launch in background/tmux mode by default; foreground supervised execution is an explicit short-runtime exception only when the caller timeout is safely above the child max runtime.
+- The runner must poll the launcher `exit_file`, worker log, and supervisor `final-result.json`. If `final-result.json` is missing or has `result_class=supervisor_interrupted`, classify it as `supervisor_integrity_failure` / harness execution failure, not as implementation acceptance failure.
+- Child logs, diffs, and progress artifacts may be used as secondary evidence, but they do not replace the canonical supervisor final result.
+- If a completed implementation has a simple same-scope implementation-context mismatch (for example visible label or CTA wording), the runner may create a fresh bounded rework handoff without lead escalation. Escalate only when the contract itself is ambiguous, scope changes, or governance/product authority is needed.
+- Implementation contexts with user-visible copy requirements should include machine-checkable assertions such as required visible strings, forbidden visible strings, and required metric labels before QC handoff.

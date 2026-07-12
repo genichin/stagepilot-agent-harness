@@ -4,10 +4,10 @@ set -euo pipefail
 usage() {
   cat <<'EOF'
 Usage:
-  scripts/runner-launch-impl.sh [--supervised] [--preset NAME] [--checkpoint-minutes N] [--max-minutes N] [--first-progress-minutes N] [--implementation-context PATH] [--no-readiness-gate] [--progress-artifact PATH] [--background] [--session-name NAME] <impl_handoff_artifact> <delivery_state>
+  scripts/runner-launch-impl.sh [--supervised] [--preset NAME] [--checkpoint-minutes N] [--max-minutes N] [--first-progress-minutes N] [--implementation-context PATH] [--no-readiness-gate] [--progress-artifact PATH] [--background] [--foreground-supervised] [--session-name NAME] <impl_handoff_artifact> <delivery_state>
 
 Default:
-  Foreground bounded worker call using Hermes profile `dev-impl`.
+  Unsupervised calls run foreground using Hermes profile `dev-impl`; supervised calls run detached/background unless --foreground-supervised is set.
 
 Presets:
   default    checkpoint=10, max=60   Normal supervised bounded work.
@@ -23,13 +23,15 @@ Options:
   --implementation-context PATH Path to runner-prepared implementation-context artifact. Required by readiness gate for supervised impl.
   --no-readiness-gate      Disable implementation-context readiness gate (only for truly trivial/manual exceptions).
   --progress-artifact PATH Override the progress artifact path used in prompts/supervision.
-  --background             Run in detached tmux instead of foreground.
+  --background             Run in detached tmux instead of foreground. Supervised mode defaults to background unless --foreground-supervised is set.
+  --foreground-supervised  Allow supervised execution in the invoking foreground terminal; use only when max runtime is safely below the caller timeout.
   --session-name NAME      Override tmux session name for background mode.
   -h, --help               Show this help.
 EOF
 }
 
 background=0
+foreground_supervised=0
 supervised=0
 supervised_explicit=0
 session_name=""
@@ -70,6 +72,10 @@ while [[ $# -gt 0 ]]; do
   case "$1" in
     --background)
       background=1
+      shift
+      ;;
+    --foreground-supervised)
+      foreground_supervised=1
       shift
       ;;
     --supervised)
@@ -234,6 +240,7 @@ After reading the context/handoff/state, read only the exact target snippets nee
 Do not rediscover or redesign service/data-source choices, return shapes, render insertion points, or test assertions already pinned in the context.
 Do not broad-search the repository unless a listed anchor is invalid and the context explicitly permits that search; if an anchor/path/seam is invalid, write a concrete blocker to the progress artifact and stop instead of searching for an alternative.
 Do not treat context intake, repeated reads/searches, basename path retries, or heartbeat text as implementation progress.
+If implementation output diverges from explicit visible-string/CTA/test contract, perform a bounded same-scope correction; do not ask the lead unless the contract itself is ambiguous or requires scope change.
 Stay within the approved scope in the handoff.
 Return:
 1) changed files
@@ -257,6 +264,9 @@ EOF
 )
 
 run_supervised() {
+  if [[ $foreground_supervised -eq 0 ]]; then
+    background=1
+  fi
   local -a supervisor_cmd=(
     python3 "$supervise_worker"
     --label impl
@@ -313,10 +323,12 @@ run_supervised() {
   echo "progress_artifact: $progress_artifact"
   echo "log_file: $log_file"
   echo "exit_file: $exit_file"
+  echo "poll: wait for exit_file and inspect final_result_file printed in log; missing final-result is supervisor_integrity_failure, not implementation acceptance"
 }
 
 if [[ $supervised -eq 1 ]]; then
   run_supervised
+  exit 0
 fi
 
 if [[ $background -eq 0 ]]; then
