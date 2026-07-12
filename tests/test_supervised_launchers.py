@@ -119,6 +119,67 @@ class SupervisedLauncherPathResolutionTest(unittest.TestCase):
         observed = self.run_launcher(IMPL, 'impl-handoff.md', extra_args=['--preset', 'default'])
         self.assert_common(observed, label='impl', profile='dev-impl', handoff_name='impl-handoff.md', expect_preset=True)
 
+
+    def test_impl_launcher_auto_supervises_when_handoff_names_context(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp_path = Path(tmp)
+            project = tmp_path / 'project'
+            bin_dir = tmp_path / 'bin'
+            capture_file = tmp_path / 'python3-argv.json'
+            bin_dir.mkdir(parents=True)
+            project.mkdir()
+            subprocess.run(['git', 'init', '-q'], cwd=project, check=True)
+
+            delivery_dir = project / '.stagepilot' / 'delivery' / 'case'
+            delivery_dir.mkdir(parents=True)
+            context = delivery_dir / 'custom-context.md'
+            context.write_text(
+                '# Implementation context\n\n'
+                '## Target files\n- tracked.txt\n\n'
+                '## Edit anchors\n- tracked.txt: beginning of file\n\n'
+                '## Allowed search budget\n- No broad search unless listed anchors fail.\n\n'
+                '## Validation commands\n- python3 -m pytest -q\n\n'
+                '## First progress deadline\n- 2 minutes.\n',
+                encoding='utf-8',
+            )
+            handoff = delivery_dir / 'impl-handoff.md'
+            handoff.write_text(f'Implementation context: `{context}`\n', encoding='utf-8')
+            state = delivery_dir / 'state.json'
+            state.write_text('{}\n', encoding='utf-8')
+
+            python_stub = bin_dir / 'python3'
+            python_stub.write_text(
+                '#!/usr/bin/python3\n'
+                'import json, os, sys\n'
+                'Path = __import__("pathlib").Path\n'
+                'capture = Path(os.environ["CAPTURE_FILE"])\n'
+                'capture.write_text(json.dumps(sys.argv[1:]), encoding="utf-8")\n'
+                'raise SystemExit(0)\n',
+                encoding='utf-8',
+            )
+            python_stub.chmod(0o755)
+            hermes_stub = bin_dir / 'hermes'
+            hermes_stub.write_text('#!/usr/bin/env bash\nexit 0\n', encoding='utf-8')
+            hermes_stub.chmod(0o755)
+
+            env = os.environ.copy()
+            env['PATH'] = f"{bin_dir}:{env['PATH']}"
+            env['CAPTURE_FILE'] = str(capture_file)
+            result = subprocess.run(
+                [str(IMPL), str(handoff), str(state)],
+                cwd=project,
+                env=env,
+                text=True,
+                capture_output=True,
+                check=False,
+            )
+            self.assertEqual(result.returncode, 0, msg=result.stdout + '\n' + result.stderr)
+            self.assertIn('notice: auto-enabled --supervised', result.stderr)
+            self.assertIn(f'implementation_context: {context}', result.stdout)
+            argv = json.loads(capture_file.read_text(encoding='utf-8'))
+            self.assertEqual(argv[0], str(SUPERVISE))
+            self.assertIn('--first-progress-minutes', argv)
+
     def test_qc_supervised_launcher_uses_harness_helper_and_target_worktree(self) -> None:
         observed = self.run_launcher(QC, 'qc-handoff.md')
         self.assert_common(observed, label='qc', profile='dev-qc', handoff_name='qc-handoff.md', expect_preset=False)

@@ -31,6 +31,7 @@ EOF
 
 background=0
 supervised=0
+supervised_explicit=0
 session_name=""
 preset_name="default"
 checkpoint_minutes=""
@@ -73,6 +74,7 @@ while [[ $# -gt 0 ]]; do
       ;;
     --supervised)
       supervised=1
+      supervised_explicit=1
       shift
       ;;
     --preset)
@@ -157,6 +159,23 @@ supervise_worker="$script_dir/supervise_worker.py"
 [[ -f "$supervise_worker" ]] || { echo "error: supervise_worker.py not found next to launcher: $supervise_worker" >&2; exit 1; }
 progress_artifact=${progress_artifact_override:-"$worktree_root/.stagepilot/worker-progress/${handoff_id}.md"}
 implementation_context=${implementation_context_override:-"${impl_handoff%.*}-implementation-context.md"}
+
+# If the runner forgot to pass --implementation-context but the handoff names one,
+# recover the bounded context path here. This prevents silent fallback to an
+# unbounded implementation agent when a readiness-gated context exists.
+if [[ -z "$implementation_context_override" ]]; then
+  context_from_handoff=$(grep -Eim1 '^[[:space:]-]*(Implementation context|implementation_context):' "$impl_handoff" 2>/dev/null     | sed -E 's/^[[:space:]-]*(Implementation context|implementation_context):[[:space:]]*//I; s/^`//; s/`$//; s/[[:space:]]+$//' || true)
+  if [[ -n "$context_from_handoff" ]]; then
+    implementation_context="$context_from_handoff"
+  fi
+fi
+
+# A discovered implementation-context means this is a bounded handoff. Never run
+# it as a plain un-supervised chat just because the caller omitted --supervised.
+if [[ $supervised -eq 0 && -f "$implementation_context" && $readiness_gate -eq 1 ]]; then
+  supervised=1
+  echo "notice: auto-enabled --supervised because implementation-context was found: $implementation_context" >&2
+fi
 mkdir -p "$(dirname "$progress_artifact")"
 
 validate_implementation_context() {
