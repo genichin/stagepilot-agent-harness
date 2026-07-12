@@ -5,10 +5,11 @@ This handoff is transport-agnostic. It may be issued through ordinary runner-to-
 ## Default launch rule
 
 - Default launch mode is foreground bounded worker execution.
-- For non-trivial implementation handoffs, the preferred foreground path is supervised checkpoint execution via `scripts/runner-launch-impl.sh --supervised <impl_handoff_artifact> <delivery_state>`.
+- For non-trivial implementation handoffs, the preferred foreground path is supervised checkpoint execution via `scripts/runner-launch-impl.sh --supervised --implementation-context <implementation_context> <impl_handoff_artifact> <delivery_state>`.
+- Supervised implementation launches require an implementation-context artifact by default. It must identify Target files, Edit anchors, Allowed search budget, Validation commands, and First progress deadline before the worker starts.
 - The launcher is expected to run in place from the harness repo (often by absolute path) even when the runner cwd is the target delivery worktree; helper scripts resolve relative to the launcher location, while worker `--workdir`, git evidence, and progress artifacts stay rooted in the target worktree.
 - The runner may still use `scripts/runner-launch-impl.sh <impl_handoff_artifact> <delivery_state>` for short/simple bounded work.
-- The wrapper runs `hermes --profile dev-impl chat -q ...`; in supervised mode it checkpoints progress every N minutes and extends only when concrete evidence exists.
+- The wrapper runs `hermes --profile dev-impl chat -q ...`; in supervised mode it checkpoints progress every N minutes and extends only when concrete evidence exists. It also stops early on first-progress deadline miss, repeated context compaction, or read/search loops without write/diff/progress evidence.
 - Concrete evidence includes git diff/status changes or updated progress artifacts under `.stagepilot/worker-progress/`; heartbeat-only messages do not qualify.
 - Before significant impl work for a PR-bound kickoff, the runner should already have completed publication auth preflight in the delivery worktree and escalated immediately on `publication_auth_missing` rather than discovering auth/push failure only after impl/QC completion.
 - Runner slicing should normally target impl work that can show concrete progress evidence within about 5 minutes and is likely to finish within about 30 minutes, i.e. roughly half of the default supervised checkpoint/runtime budget.
@@ -34,6 +35,7 @@ This handoff is transport-agnostic. It may be issued through ordinary runner-to-
 - acceptance target
 - commands/tests to run
 - evidence required back
+- implementation-context artifact path and readiness-gate result
 
 ## Claim / start rule
 

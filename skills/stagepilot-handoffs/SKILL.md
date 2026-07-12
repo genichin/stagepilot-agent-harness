@@ -79,9 +79,11 @@ Must include:
 
 Default execution rule:
 - runner explicitly launches `scripts/runner-launch-impl.sh <impl_handoff_artifact> <delivery_state>` for short/simple bounded work
-- for non-trivial implementation handoffs, prefer `scripts/runner-launch-impl.sh --supervised <impl_handoff_artifact> <delivery_state>`
+- for non-trivial implementation handoffs, prefer `scripts/runner-launch-impl.sh --supervised --implementation-context <implementation_context> <impl_handoff_artifact> <delivery_state>`
+- supervised implementation handoffs require a runner-prepared implementation-context artifact by default; it must include Target files, Edit anchors, Allowed search budget, Validation commands, and First progress deadline sections
 - launchers are expected to run in place from the harness repo (often by absolute path) while the runner cwd stays in the target delivery worktree; helper scripts resolve relative to the launcher location, while worker `--workdir`, git evidence, and progress artifacts stay rooted in the target worktree
 - supervised mode checkpoints git/progress evidence and extends only on concrete progress; heartbeat-only output does not qualify
+- first-progress and early compaction/read-loop guards stop token-burning before the ordinary checkpoint when no concrete evidence appears
 - runner should normally slice impl work so concrete progress evidence can appear within about 5 minutes and completion is likely within about 30 minutes
 - if a slice is unlikely to finish within about 30 minutes, split it further before launch unless the work is genuinely atomic
 - if the work remains genuinely atomic and still cannot reasonably fit inside the default 60-minute supervised cap, use only an explicit long-run supervised exception with larger checkpoint/runtime values and recorded early-progress evidence expectations
@@ -102,6 +104,7 @@ Default execution rule:
 - runner explicitly launches `scripts/runner-launch-qc.sh <qc_handoff_artifact> <delivery_state>` for short/simple bounded review work
 - for non-trivial QC handoffs, prefer `scripts/runner-launch-qc.sh --supervised <qc_handoff_artifact> <delivery_state>`
 - supervised mode checkpoints git/progress evidence and extends only on concrete progress; heartbeat-only output does not qualify
+- first-progress and early compaction/read-loop guards stop token-burning before the ordinary checkpoint when no concrete evidence appears
 - `--background` remains optional only for materially long-running or resumable child work
 
 ### delivery-runner -> lead escalation

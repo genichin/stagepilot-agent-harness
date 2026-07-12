@@ -58,6 +58,9 @@ Runtime provisioning is part of applying the harness: the repo's `skills/` catal
 - The default downstream launch path is explicit runner-owned worker execution: `scripts/runner-launch-impl.sh <impl_handoff_artifact> <delivery_state>` and `scripts/runner-launch-qc.sh <qc_handoff_artifact> <delivery_state>` for short/simple bounded work.
 - Harness launchers are intended to run in place from the harness repository (often via absolute path) while the current working directory remains the target delivery worktree; helper scripts are resolved relative to the launcher location, while worker `--workdir`, git evidence, and `.stagepilot/worker-progress/` remain tied to the target worktree.
 - For non-trivial child work, the runner should prefer supervised checkpoint mode via `--supervised`; extension beyond the first checkpoint requires concrete git/progress evidence, and heartbeat-only output does not qualify.
+- Supervised implementation work now requires a runner-prepared implementation-context artifact by default. The context must name target files, edit anchors, allowed search budget, validation commands, and first-progress expectations before `dev-impl` is launched.
+- `runner-launch-impl.sh --supervised` enforces an impl readiness gate unless `--no-readiness-gate` is explicitly used for a documented trivial/manual exception.
+- `supervise_worker.py` enforces a first-progress deadline and early compaction/read-loop stops before the normal checkpoint when there is no git/progress evidence.
 - Runner-owned impl slicing should normally target work that can show concrete progress evidence within about 5 minutes and is likely to close within about 30 minutes, i.e. roughly half of the default supervised checkpoint/runtime budget.
 - If an impl slice is unlikely to close within about 30 minutes, split it further before launch unless the work is genuinely atomic and further slicing would create worse context loss or rework.
 - If an impl task remains genuinely atomic and still cannot reasonably fit inside the default 60-minute supervised cap, the runner may use an explicit long-run supervised exception with a larger checkpoint/runtime budget, recorded early-progress evidence expectations, and a stated hard cap.
@@ -74,7 +77,7 @@ Runtime provisioning is part of applying the harness: the repo's `skills/` catal
 - The default QC retry cap is 3 verdict cycles for the same acceptance scope (initial review plus up to 2 rework/re-review loops).
 - If the same QC gap remains unresolved on the 3rd verdict, the runner must escalate to the lead instead of continuing an unbounded loop.
 - The canonical required successful completion signal is a lead-visible `done` delivery-state transition on the active root kickoff item plus persisted delivery artifacts/state. `archived` is reserved for terminal historical closure of a root kickoff that should no longer continue, not normal successful completion. A separate completion summary is optional by default.
-- Supervised child no-progress stops should be classified as specifically as the evidence allows. Prefer stall subtypes such as `context_compaction_loop`, `read_loop_no_diff`, and `progress_artifact_missing` over a bare generic timeout when the child log / artifact state supports that conclusion.
+- Supervised child no-progress stops should be classified as specifically as the evidence allows. Prefer stall subtypes such as `context_compaction_loop`, `read_loop_no_diff`, and `progress_artifact_missing` over a bare generic timeout when the child log / artifact state supports that conclusion. Early-stop result classes include `first_progress_deadline_exceeded`, `early_context_compaction_loop`, and `early_read_loop_no_diff`.
 
 ### Harness layering
 
@@ -112,3 +115,7 @@ Use this decision rule:
 - [ ] Role boundaries remain explicit for lead, runner, impl, and qc.
 - [ ] Handover or state changes are backed by artifacts, not only chat.
 - [ ] Root handoff, PR-boundary, merge-ownership, QC-retry, and completion-signal rules still match the current core docs.
+
+## References
+
+- `references/implementation-worker-hardening.md` — implementation-context artifact, readiness gate, first-progress deadline, and early compaction/read-loop stops for `runner -> dev-impl` execution.

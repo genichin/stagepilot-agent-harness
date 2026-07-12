@@ -24,6 +24,9 @@ RESULT_EXIT_CODES = {
     'timeout_no_progress_progress_artifact_missing': 124,
     'timeout_with_progress': 125,
     'max_runtime_exceeded': 126,
+    'first_progress_deadline_exceeded': 127,
+    'early_context_compaction_loop': 128,
+    'early_read_loop_no_diff': 129,
 }
 
 
@@ -32,6 +35,14 @@ class EvidenceState:
     git_status: str
     git_diff_stat: str
     progress_mtimes: dict[str, float]
+
+
+@dataclass
+class LogSignals:
+    compact_hits: int
+    read_hits: int
+    search_hits: int
+    write_hits: int
 
 
 
@@ -62,6 +73,44 @@ def log_tail(path: Path, max_chars: int = 4000) -> str:
         return data
     return data[-max_chars:]
 
+
+
+def analyze_log(path: Path, max_chars: int = 32000) -> LogSignals:
+    log_text = log_tail(path, max_chars=max_chars)
+    lowered = log_text.lower()
+    compact_hits = (
+        lowered.count('context compact')
+        + lowered.count('context compaction')
+        + lowered.count('compacting context')
+        + lowered.count('compacting conversation')
+        + lowered.count('session compressed')
+    )
+    read_hits = (
+        log_text.count('📖 read')
+        + lowered.count('read_file(')
+        + lowered.count('read file')
+    )
+    search_hits = (
+        log_text.count('🔎 search')
+        + log_text.count('🔎 grep')
+        + log_text.count('🔎 find')
+        + lowered.count('search_files(')
+    )
+    write_hits = (
+        log_text.count('✏️ write')
+        + log_text.count('✍️  write')
+        + log_text.count('✍️ write')
+        + log_text.count('🩹 patch')
+        + log_text.count('🔧 patch')
+        + lowered.count('write_file(')
+        + lowered.count('patch(')
+    )
+    return LogSignals(
+        compact_hits=compact_hits,
+        read_hits=read_hits,
+        search_hits=search_hits,
+        write_hits=write_hits,
+    )
 
 
 def collect_progress_files(progress_artifact: Path | None, progress_dir: Path | None) -> list[Path]:
@@ -161,17 +210,14 @@ def classify_stall(*, child_log: Path, progress_artifact: Path | None, progress_
     tracked_progress_files = collect_progress_files(progress_artifact, progress_dir)
     progress_artifact_missing = not any(path.exists() for path in tracked_progress_files)
 
-    compact_hits = (
-        lowered.count('context compact')
-        + lowered.count('context compaction')
-        + lowered.count('compacting conversation')
-    )
+    signals = analyze_log(child_log)
+    compact_hits = signals.compact_hits
+    read_hits = signals.read_hits
+    search_hits = signals.search_hits
+    write_hits = signals.write_hits
     if compact_hits:
         reasons.append(f'context_compaction_markers={compact_hits}')
 
-    read_hits = log_text.count('📖 read') + lowered.count('read_file(') + lowered.count('read file')
-    search_hits = log_text.count('🔎 search') + lowered.count('search_files(')
-    write_hits = log_text.count('✏️ write') + log_text.count('🩹 patch') + lowered.count('write_file(') + lowered.count('patch(')
     if read_hits or search_hits:
         reasons.append(f'read_markers={read_hits}')
         reasons.append(f'search_markers={search_hits}')
@@ -238,6 +284,12 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument('--output-root', default='.stagepilot/worker-supervision')
     parser.add_argument('--checkpoint-minutes', type=float, default=10.0)
     parser.add_argument('--max-minutes', type=float, default=60.0)
+    parser.add_argument('--first-progress-minutes', type=float, default=2.0,
+                        help='Stop early if no git/progress evidence appears before this deadline. Set 0 to disable.')
+    parser.add_argument('--early-compaction-threshold', type=int, default=2,
+                        help='Stop early when log compaction markers reach this threshold without evidence. Set 0 to disable.')
+    parser.add_argument('--early-read-search-threshold', type=int, default=20,
+                        help='Stop early when read/search markers reach this threshold without evidence/diff. Set 0 to disable.')
     parser.add_argument('command', nargs=argparse.REMAINDER)
     return parser
 
@@ -256,6 +308,10 @@ def main(argv: list[str]) -> int:
         parser.error('checkpoint and max minutes must be positive')
     if args.max_minutes < args.checkpoint_minutes:
         parser.error('max-minutes must be >= checkpoint-minutes')
+    if args.first_progress_minutes < 0:
+        parser.error('first-progress-minutes must be >= 0')
+    if args.early_compaction_threshold < 0 or args.early_read_search_threshold < 0:
+        parser.error('early guard thresholds must be >= 0')
 
     workdir = Path(args.workdir).resolve()
     output_root = Path(args.output_root)
@@ -298,6 +354,9 @@ def main(argv: list[str]) -> int:
         'run_dir': str(run_dir),
         'checkpoint_minutes': args.checkpoint_minutes,
         'max_minutes': args.max_minutes,
+        'first_progress_minutes': args.first_progress_minutes,
+        'early_compaction_threshold': args.early_compaction_threshold,
+        'early_read_search_threshold': args.early_read_search_threshold,
         'command': command,
         'command_display': shlex.join(command),
         'started_at': iso_now(),
@@ -319,6 +378,20 @@ def main(argv: list[str]) -> int:
     checkpoints_taken = 0
     extensions_granted = 0
     observed_progress = False
+    first_progress_seconds = args.first_progress_minutes * 60.0
+
+    def current_evidence(prev: EvidenceState) -> tuple[EvidenceState, list[dict[str, object]], list[str], bool]:
+        cur = snapshot_state(workdir, progress_artifact, progress_dir)
+        updates_ = progress_changes(prev, cur)
+        reasons_: list[str] = []
+        if cur.git_status != prev.git_status and cur.git_status.strip():
+            reasons_.append('git_status_changed')
+        if cur.git_diff_stat != prev.git_diff_stat and cur.git_diff_stat.strip():
+            reasons_.append('git_diff_stat_changed')
+        if updates_:
+            reasons_.append('progress_artifact_updated')
+        return cur, updates_, reasons_, bool(reasons_)
+
     result_class: str | None = None
     result_reason = ''
     stall_subtype: str | None = None
@@ -339,23 +412,62 @@ def main(argv: list[str]) -> int:
                 result_reason = f'child exited non-zero: {rc}'
             break
 
+        current, updates, reasons, evidence = current_evidence(previous)
+        if evidence:
+            observed_progress = True
+            last_progress_updates = updates
+            last_evidence_reasons = reasons
+
+        signals = analyze_log(child_log)
+        early_result: tuple[str, str, str | None] | None = None
+        if not observed_progress and not evidence:
+            if args.early_compaction_threshold and signals.compact_hits >= args.early_compaction_threshold:
+                early_result = (
+                    'early_context_compaction_loop',
+                    'early stop: context compaction markers exceeded threshold before first concrete progress',
+                    'context_compaction_loop',
+                )
+            elif (
+                args.early_read_search_threshold
+                and signals.read_hits + signals.search_hits >= args.early_read_search_threshold
+                and signals.write_hits == 0
+                and not current.git_diff_stat.strip()
+            ):
+                early_result = (
+                    'early_read_loop_no_diff',
+                    'early stop: read/search markers exceeded threshold before first concrete progress',
+                    'read_loop_no_diff',
+                )
+            elif first_progress_seconds > 0 and elapsed >= first_progress_seconds:
+                early_result = (
+                    'first_progress_deadline_exceeded',
+                    'early stop: first progress deadline elapsed without git/progress evidence',
+                    'progress_artifact_missing',
+                )
+
+        if early_result is not None:
+            terminated_rc = terminate_process(proc)
+            if terminated_rc is not None:
+                child_exit_file.write_text(f'{terminated_rc}\n', encoding='utf-8')
+            result_class, result_reason, stall_subtype = early_result
+            stall_classification_reasons = [
+                f'context_compaction_markers={signals.compact_hits}',
+                f'read_markers={signals.read_hits}',
+                f'search_markers={signals.search_hits}',
+                f'write_markers={signals.write_hits}',
+                'first_progress_not_observed',
+            ]
+            last_progress_updates = updates
+            last_evidence_reasons = reasons
+            previous = current
+            break
+
         next_checkpoint_at = (checkpoints_taken + 1) * checkpoint_seconds
         if elapsed < next_checkpoint_at:
             time.sleep(min(0.5, next_checkpoint_at - elapsed))
             continue
 
         checkpoints_taken += 1
-        current = snapshot_state(workdir, progress_artifact, progress_dir)
-        updates = progress_changes(previous, current)
-        reasons: list[str] = []
-        if current.git_status != previous.git_status and current.git_status.strip():
-            reasons.append('git_status_changed')
-        if current.git_diff_stat != previous.git_diff_stat and current.git_diff_stat.strip():
-            reasons.append('git_diff_stat_changed')
-        if updates:
-            reasons.append('progress_artifact_updated')
-        evidence = bool(reasons)
-        observed_progress = observed_progress or evidence
         last_progress_updates = updates
         last_evidence_reasons = reasons
 

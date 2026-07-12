@@ -30,7 +30,7 @@ class SuperviseWorkerTests(unittest.TestCase):
     def tearDown(self) -> None:
         self.tempdir.cleanup()
 
-    def run_supervisor(self, name: str, command: str, *, checkpoint: float = 0.02, max_minutes: float = 0.08) -> tuple[subprocess.CompletedProcess[str], dict]:
+    def run_supervisor(self, name: str, command: str, *, checkpoint: float = 0.02, max_minutes: float = 0.08, extra_args: list[str] | None = None) -> tuple[subprocess.CompletedProcess[str], dict]:
         progress = self.repo / '.stagepilot' / 'worker-progress' / f'{name}.md'
         proc = subprocess.run(
             [
@@ -40,6 +40,7 @@ class SuperviseWorkerTests(unittest.TestCase):
                 '--progress-artifact', str(progress),
                 '--checkpoint-minutes', str(checkpoint),
                 '--max-minutes', str(max_minutes),
+                *(extra_args or []),
                 '--', 'bash', '-lc', command,
             ],
             cwd=self.repo,
@@ -153,8 +154,8 @@ class SuperviseWorkerTests(unittest.TestCase):
             sleep 2
         ''')
         proc, payload = self.run_supervisor('compaction-loop', command)
-        self.assertEqual(proc.returncode, 124)
-        self.assertEqual(payload['result_class'], 'timeout_no_progress')
+        self.assertEqual(proc.returncode, 128)
+        self.assertEqual(payload['result_class'], 'early_context_compaction_loop')
         self.assertEqual(payload['stall_subtype'], 'context_compaction_loop')
         self.assertIn('context_compaction_markers=', ' '.join(payload['stall_classification_reasons']))
 
@@ -164,6 +165,40 @@ class SuperviseWorkerTests(unittest.TestCase):
         self.assertEqual(payload['result_class'], 'timeout_no_progress_progress_artifact_missing')
         self.assertEqual(payload['stall_subtype'], 'progress_artifact_missing')
         self.assertIn('progress_artifact_missing', payload['stall_classification_reasons'])
+
+    def test_first_progress_deadline_stops_before_checkpoint(self) -> None:
+        proc, payload = self.run_supervisor(
+            'first-progress',
+            'sleep 3',
+            checkpoint=0.08,
+            max_minutes=0.2,
+            extra_args=['--first-progress-minutes', '0.01'],
+        )
+        self.assertEqual(proc.returncode, 127)
+        self.assertEqual(payload['result_class'], 'first_progress_deadline_exceeded')
+        self.assertEqual(payload['stall_subtype'], 'progress_artifact_missing')
+        self.assertEqual(payload['checkpoints_taken'], 0)
+
+    def test_early_read_loop_stops_before_checkpoint(self) -> None:
+        command = textwrap.dedent('''\
+            for i in 1 2 3 4 5 6; do
+              printf "📖 read tracked.txt\\n"
+              printf "🔎 grep tracked\\n"
+              sleep 0.2
+            done
+            sleep 3
+        ''')
+        proc, payload = self.run_supervisor(
+            'early-read-loop',
+            command,
+            checkpoint=0.08,
+            max_minutes=0.2,
+            extra_args=['--early-read-search-threshold', '6'],
+        )
+        self.assertEqual(proc.returncode, 129)
+        self.assertEqual(payload['result_class'], 'early_read_loop_no_diff')
+        self.assertEqual(payload['stall_subtype'], 'read_loop_no_diff')
+        self.assertEqual(payload['checkpoints_taken'], 0)
 
 
 if __name__ == '__main__':

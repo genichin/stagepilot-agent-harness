@@ -4,7 +4,7 @@ set -euo pipefail
 usage() {
   cat <<'EOF'
 Usage:
-  scripts/runner-launch-impl.sh [--supervised] [--preset NAME] [--checkpoint-minutes N] [--max-minutes N] [--progress-artifact PATH] [--background] [--session-name NAME] <impl_handoff_artifact> <delivery_state>
+  scripts/runner-launch-impl.sh [--supervised] [--preset NAME] [--checkpoint-minutes N] [--max-minutes N] [--first-progress-minutes N] [--implementation-context PATH] [--no-readiness-gate] [--progress-artifact PATH] [--background] [--session-name NAME] <impl_handoff_artifact> <delivery_state>
 
 Default:
   Foreground bounded worker call using Hermes profile `dev-impl`.
@@ -19,6 +19,9 @@ Options:
   --preset NAME            Runtime budget preset: default | stretched | long-run.
   --checkpoint-minutes N   Supervised checkpoint interval in minutes (preset-aware; explicit value overrides preset).
   --max-minutes N          Supervised hard runtime cap in minutes (preset-aware; explicit value overrides preset).
+  --first-progress-minutes N Stop if no git/progress evidence appears before this deadline in supervised mode (default: 2).
+  --implementation-context PATH Path to runner-prepared implementation-context artifact. Required by readiness gate for supervised impl.
+  --no-readiness-gate      Disable implementation-context readiness gate (only for truly trivial/manual exceptions).
   --progress-artifact PATH Override the progress artifact path used in prompts/supervision.
   --background             Run in detached tmux instead of foreground.
   --session-name NAME      Override tmux session name for background mode.
@@ -33,6 +36,10 @@ preset_name="default"
 checkpoint_minutes=""
 max_minutes=""
 progress_artifact_override=""
+implementation_context_override=""
+readiness_gate=1
+first_progress_minutes="2"
+first_progress_explicit=0
 checkpoint_explicit=0
 max_explicit=0
 args=()
@@ -85,6 +92,21 @@ while [[ $# -gt 0 ]]; do
       max_explicit=1
       shift 2
       ;;
+    --first-progress-minutes)
+      first_progress_minutes=${2:-}
+      [[ -n "$first_progress_minutes" ]] || { echo "error: --first-progress-minutes requires a value" >&2; exit 2; }
+      first_progress_explicit=1
+      shift 2
+      ;;
+    --implementation-context)
+      implementation_context_override=${2:-}
+      [[ -n "$implementation_context_override" ]] || { echo "error: --implementation-context requires a value" >&2; exit 2; }
+      shift 2
+      ;;
+    --no-readiness-gate)
+      readiness_gate=0
+      shift
+      ;;
     --progress-artifact)
       progress_artifact_override=${2:-}
       [[ -n "$progress_artifact_override" ]] || { echo "error: --progress-artifact requires a value" >&2; exit 2; }
@@ -134,16 +156,55 @@ handoff_id=${handoff_id%.*}
 supervise_worker="$script_dir/supervise_worker.py"
 [[ -f "$supervise_worker" ]] || { echo "error: supervise_worker.py not found next to launcher: $supervise_worker" >&2; exit 1; }
 progress_artifact=${progress_artifact_override:-"$worktree_root/.stagepilot/worker-progress/${handoff_id}.md"}
+implementation_context=${implementation_context_override:-"${impl_handoff%.*}-implementation-context.md"}
 mkdir -p "$(dirname "$progress_artifact")"
+
+validate_implementation_context() {
+  local ctx=$1
+  [[ -f "$ctx" ]] || {
+    echo "error: implementation-context artifact required but not found: $ctx" >&2
+    echo "hint: create it beside the impl handoff or pass --implementation-context PATH; use --no-readiness-gate only for documented trivial/manual exceptions" >&2
+    exit 4
+  }
+  local missing=()
+  for heading in \
+    "## Target files" \
+    "## Edit anchors" \
+    "## Allowed search budget" \
+    "## Validation commands" \
+    "## First progress deadline"; do
+    if ! grep -Fq "$heading" "$ctx"; then
+      missing+=("$heading")
+    fi
+  done
+  if [[ ${#missing[@]} -gt 0 ]]; then
+    echo "error: implementation-context missing required heading(s): ${missing[*]}" >&2
+    echo "context: $ctx" >&2
+    exit 4
+  fi
+}
+
+if [[ $supervised -eq 1 && $readiness_gate -eq 1 ]]; then
+  implementation_context=$(realpath "$implementation_context")
+  validate_implementation_context "$implementation_context"
+elif [[ -f "$implementation_context" ]]; then
+  implementation_context=$(realpath "$implementation_context")
+else
+  implementation_context=""
+fi
 
 prompt=$(cat <<EOF
 Execute the implementation handoff as dev-impl.
 
 impl_handoff_artifact: $impl_handoff
 delivery_state: $delivery_state
+implementation_context: ${implementation_context:-not-provided}
 progress_artifact: $progress_artifact
 
-Read both files first.
+Read the implementation_context first when provided, then the handoff and delivery state.
+The implementation_context is the bounded source of edit anchors and search budget.
+Do not broad-search the repository unless a listed anchor is invalid; if an anchor is invalid, write a concrete blocker to the progress artifact and stop.
+Before broad reading, create/update the progress artifact with the current step, inspected files, intended anchors, and next concrete step.
 Stay within the approved scope in the handoff.
 Return:
 1) changed files
@@ -151,7 +212,7 @@ Return:
 3) evidence paths or evidence summary
 4) residual risks or blockers
 If blocked, say so explicitly.
-If you cannot complete within the first checkpoint window, update the progress artifact at:
+You must create or update the progress artifact before the first-progress deadline (${first_progress_minutes} minute(s)) if no code diff/check evidence exists yet:
 $progress_artifact
 Required progress fields:
 - current step
@@ -177,6 +238,7 @@ run_supervised() {
     --progress-artifact "$progress_artifact"
     --checkpoint-minutes "$checkpoint_minutes"
     --max-minutes "$max_minutes"
+    --first-progress-minutes "$first_progress_minutes"
     --
     hermes --profile dev-impl chat -q "$prompt"
   )
@@ -187,6 +249,9 @@ run_supervised() {
     echo "preset: $preset_name"
     echo "checkpoint_minutes: $checkpoint_minutes"
     echo "max_minutes: $max_minutes"
+    echo "first_progress_minutes: $first_progress_minutes"
+    echo "implementation_context: ${implementation_context:-not-provided}"
+    echo "readiness_gate: $readiness_gate"
     echo "impl_handoff_artifact: $impl_handoff"
     echo "delivery_state: $delivery_state"
     echo "progress_artifact: $progress_artifact"
@@ -211,6 +276,9 @@ run_supervised() {
   echo "preset: $preset_name"
   echo "checkpoint_minutes: $checkpoint_minutes"
   echo "max_minutes: $max_minutes"
+  echo "first_progress_minutes: $first_progress_minutes"
+  echo "implementation_context: ${implementation_context:-not-provided}"
+  echo "readiness_gate: $readiness_gate"
   echo "impl_handoff_artifact: $impl_handoff"
   echo "delivery_state: $delivery_state"
   echo "progress_artifact: $progress_artifact"
@@ -228,6 +296,9 @@ if [[ $background -eq 0 ]]; then
   echo "preset: $preset_name"
   echo "checkpoint_minutes: $checkpoint_minutes"
   echo "max_minutes: $max_minutes"
+  echo "first_progress_minutes: $first_progress_minutes"
+  echo "implementation_context: ${implementation_context:-not-provided}"
+  echo "readiness_gate: $readiness_gate"
   echo "impl_handoff_artifact: $impl_handoff"
   echo "delivery_state: $delivery_state"
   echo "progress_artifact: $progress_artifact"

@@ -27,6 +27,7 @@ This skill executes the implementation work for a batch, updates code, and recor
 # Core Rules
 
 - planning과 design이 없는 batch는 구현하지 않는다.
+- non-trivial supervised `dev-impl` handoff 전에는 runner가 implementation-context artifact를 준비해야 한다. 이 artifact는 target files, edit anchors, allowed search budget, validation commands, first-progress deadline을 포함해야 한다.
 - 코드 변경 전 `implementation.md`의 Plan Summary와 Changed Files 초안을 먼저 맞춘다.
 - 구현 직후 가장 좁은 테스트, lint, typecheck, 또는 동작 검증을 수행한다.
 - Public interface/type removal이나 destructive data cleanup이 포함된 batch는 구현 문서에 삭제 전 대상 경로·파일 목록, 삭제 후 absence, non-regression 테스트, residual search, stagepilot-doctor 결과를 함께 남긴다.
@@ -39,7 +40,7 @@ This skill executes the implementation work for a batch, updates code, and recor
 # Execution Procedure
 
 1. batch 경로, plan, design, 관련 REQ를 읽는다.
-2. 구현 범위와 변경 파일 후보를 요약한다.
+2. 구현 범위와 변경 파일 후보를 요약한다. Runner/worker split이라면 implementation-context artifact와 readiness gate 결과를 먼저 확인한다.
 3. 실제 코드 변경을 수행한다.
    - Interface/type 제거 시 public registry, LLM-facing schema, runtime type enum, helper files, tests, docs/skills active guidance를 모두 확인한다.
    - Destructive cleanup이 승인된 경우 active profile/home을 먼저 resolve하고, 대상이 승인된 경로 아래인지 확인한 뒤 삭제 전 파일 목록과 삭제 후 absence를 기록한다. Archive/migration copy를 만들지 않기로 한 요구사항이면 임의 백업을 생성하지 않는다.

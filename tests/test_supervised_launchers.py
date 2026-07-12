@@ -30,6 +30,16 @@ class SupervisedLauncherPathResolutionTest(unittest.TestCase):
             handoff = delivery_dir / handoff_name
             state = delivery_dir / 'state.json'
             handoff.write_text('stub handoff\n', encoding='utf-8')
+            context = delivery_dir / handoff_name.replace('.md', '-implementation-context.md')
+            context.write_text(
+                '# Implementation context\n\n'
+                '## Target files\n- tracked.txt\n\n'
+                '## Edit anchors\n- tracked.txt: beginning of file\n\n'
+                '## Allowed search budget\n- No broad search unless listed anchors fail.\n\n'
+                '## Validation commands\n- python3 -m pytest -q\n\n'
+                '## First progress deadline\n- 2 minutes; write progress artifact before broad reading.\n',
+                encoding='utf-8',
+            )
             state.write_text('{}\n', encoding='utf-8')
 
             python_stub = bin_dir / 'python3'
@@ -96,6 +106,10 @@ class SupervisedLauncherPathResolutionTest(unittest.TestCase):
             self.assertIn('preset: default', observed['stdout'])
         self.assertIn('checkpoint_minutes: 10', observed['stdout'])
         self.assertIn('max_minutes: 60', observed['stdout'])
+        if profile == 'dev-impl':
+            self.assertIn('first_progress_minutes: 2', observed['stdout'])
+            self.assertIn('readiness_gate: 1', observed['stdout'])
+            self.assertIn('implementation_context:', observed['stdout'])
         self.assertIn(f'progress_artifact: {progress_path}', observed['stdout'])
         self.assertNotIn(f'{project}/scripts/supervise_worker.py', observed['stdout'])
 
