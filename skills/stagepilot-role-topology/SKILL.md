@@ -51,6 +51,7 @@ Use when you need to:
 ### Dev-impl
 - Owns changes to code/config/artifacts within approved scope.
 - Must provide concrete evidence of what changed and what was tested.
+- When runner provides a patch-ready implementation-context, must execute patch-first: exact target snippets, then edit/write or concrete blocker; not broad research.
 - Must not self-certify final acceptance.
 
 ### Dev-qc

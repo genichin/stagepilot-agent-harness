@@ -95,6 +95,25 @@ A runner may use `--no-readiness-gate` only for a documented trivial/manual exce
 5. Create/update the progress artifact before broad reading if no code diff/check evidence exists yet.
 6. Return changed files, commands/checks, evidence paths, and residual blockers/risks.
 
+
+## Patch-first worker behavior
+
+When the readiness gate passes, the implementation-context is no longer a research prompt. It is the edit contract.
+
+`dev-impl` must use this order:
+
+1. Read `implementation_context` once.
+2. Read the handoff/state only for scope and state alignment.
+3. Read only the exact snippets named by `Target files` / `Edit anchors`.
+4. Start one concrete outcome before additional exploration:
+   - patch/write an in-scope file,
+   - update the progress artifact with a concrete blocker naming the invalid anchor/seam/key, or
+   - run a listed validation command only when the handoff explicitly requires pre-check evidence.
+5. Do not re-discover or redesign service seams, return shapes, render insertion points, or test assertions already pinned in the context.
+6. Do not use basename/path-finding retries as a normal step. If a pinned path is invalid, record the invalid path and stop unless the context explicitly permits a narrow exact search.
+
+Progress artifact text that only says "reading context", "checking anchors", or "next step: implement" is intake, not concrete progress. A healthy `dev-impl` launch should show a diff or a concrete blocker before repeated read/search markers accumulate.
+
 ## Supervisor early-stop contract
 
 `supervise_worker.py` now has three early-stop classes before the ordinary checkpoint:

@@ -115,6 +115,10 @@ class SupervisedLauncherPathResolutionTest(unittest.TestCase):
             self.assertIn('first_progress_minutes: 2', observed['stdout'])
             self.assertIn('readiness_gate: 1', observed['stdout'])
             self.assertIn('implementation_context:', observed['stdout'])
+            prompt = argv[-1]
+            self.assertIn('PATCH-FIRST MODE', prompt)
+            self.assertIn('patch/write an in-scope file', prompt)
+            self.assertIn('Do not rediscover or redesign service/data-source choices', prompt)
         if profile == 'dev-qc':
             self.assertIn('first_progress_minutes: 5', observed['stdout'])
         self.assertIn(f'progress_artifact: {progress_path}', observed['stdout'])

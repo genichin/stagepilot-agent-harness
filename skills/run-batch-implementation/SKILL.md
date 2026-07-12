@@ -1,7 +1,7 @@
 ---
 name: run-batch-implementation
 description: "Use when: implementing a confirmed batch design, running /run-batch-implementation with a BAT ID, applying code changes for docs/batches/<BAT_ID>, or updating implementation logs and validation evidence for a batch."
-version: 0.7.1
+version: 0.7.2
 author: Justin Ko
 license: private
 argument-hint: "예: bat-001 또는 docs/batches/bat-001_20260424_scaffold"
@@ -27,7 +27,8 @@ This skill executes the implementation work for a batch, updates code, and recor
 # Core Rules
 
 - planning과 design이 없는 batch는 구현하지 않는다.
-- non-trivial supervised `dev-impl` handoff 전에는 runner가 implementation-context artifact를 준비해야 한다. 이 artifact는 target files, edit anchors, allowed search budget, validation commands, first-progress deadline을 포함해야 한다.
+- non-trivial supervised `dev-impl` handoff 전에는 runner가 implementation-context artifact를 준비해야 한다. 이 artifact는 target files, edit anchors, service seams, return shape, render insertion point, test assertions, forbidden data exposure, allowed search budget, validation commands, first-progress deadline을 포함해야 한다.
+- patch-ready implementation-context가 있으면 `dev-impl`는 patch-first 모드로 동작한다: context를 실행 계약으로 받아들이고, exact target snippets만 읽은 뒤 곧바로 edit/write 또는 concrete blocker를 남긴다. service seam/return shape/render insertion point가 이미 pin 되어 있으면 repo에서 다시 설계·탐색하지 않는다.
 - 코드 변경 전 `implementation.md`의 Plan Summary와 Changed Files 초안을 먼저 맞춘다.
 - 구현 직후 가장 좁은 테스트, lint, typecheck, 또는 동작 검증을 수행한다.
 - Public interface/type removal이나 destructive data cleanup이 포함된 batch는 구현 문서에 삭제 전 대상 경로·파일 목록, 삭제 후 absence, non-regression 테스트, residual search, stagepilot-doctor 결과를 함께 남긴다.
@@ -41,6 +42,8 @@ This skill executes the implementation work for a batch, updates code, and recor
 
 1. batch 경로, plan, design, 관련 REQ를 읽는다.
 2. 구현 범위와 변경 파일 후보를 요약한다. Runner/worker split이라면 implementation-context artifact와 readiness gate 결과를 먼저 확인한다.
+   - readiness-gated context가 있으면 먼저 target snippets만 확인하고 patch/write로 진입한다.
+   - context가 지정한 seam/path/key가 invalid하면 broad search로 대체 설계를 찾지 말고 progress artifact에 blocker를 기록하고 중단한다.
 3. 실제 코드 변경을 수행한다.
    - Interface/type 제거 시 public registry, LLM-facing schema, runtime type enum, helper files, tests, docs/skills active guidance를 모두 확인한다.
    - Destructive cleanup이 승인된 경우 active profile/home을 먼저 resolve하고, 대상이 승인된 경로 아래인지 확인한 뒤 삭제 전 파일 목록과 삭제 후 absence를 기록한다. Archive/migration copy를 만들지 않기로 한 요구사항이면 임의 백업을 생성하지 않는다.
@@ -52,6 +55,7 @@ This skill executes the implementation work for a batch, updates code, and recor
 # Validation
 
 - `implementation.md`에 실제 변경 파일과 검증 기록이 반영됐는지 확인한다.
+- patch-ready supervised handoff에서 반복 read/search만 있고 diff 또는 concrete blocker가 없었다면 implementation failure로 취급하고 동일 재시도를 하지 않는다.
 - 구현 직후 수행한 가장 좁은 검증 명령 또는 결과가 문서에 남았는지 확인한다.
 - persistence/migration 디버깅 변경이라면, 타깃 로그로 ABI 크기와 read rc를 캡처하는 계측 또는 동등한 증거가 남았는지 확인한다.
 - batch 문서 `index.md`와 `docs/batches/index.md`의 Status가 구현 진행 상태(`in-delivery` 등)와 일치하는지 확인한다.

@@ -227,9 +227,11 @@ progress_artifact: $progress_artifact
 
 Read the implementation_context first when provided, then the handoff and delivery state.
 The implementation_context is the bounded source of edit anchors, service seams, return shape, render insertion point, test assertions, forbidden data exposure, and search budget.
-Do not invent service/data-source choices outside the context. If the required seam, return shape, render insertion point, or test assertion is missing/invalid, write a concrete blocker to the progress artifact and stop instead of broad-searching.
-Do not broad-search the repository unless a listed anchor is invalid and the context explicitly permits that search; if an anchor is invalid, write a concrete blocker to the progress artifact and stop.
-Before broad reading, create/update the progress artifact with the current step, inspected files, intended anchors/seams, and next concrete step.
+PATCH-FIRST MODE: when implementation_context is present and readiness-gated, treat it as the edit contract, not a research prompt.
+After reading the context/handoff/state, read only the exact target snippets needed for the listed edit anchors, then immediately do one of: patch/write an in-scope file, write a concrete blocker to the progress artifact naming the invalid anchor/seam/key, or run a listed validation pre-check only if explicitly required.
+Do not rediscover or redesign service/data-source choices, return shapes, render insertion points, or test assertions already pinned in the context.
+Do not broad-search the repository unless a listed anchor is invalid and the context explicitly permits that search; if an anchor/path/seam is invalid, write a concrete blocker to the progress artifact and stop instead of searching for an alternative.
+Do not treat context intake, repeated reads/searches, basename path retries, or heartbeat text as implementation progress.
 Stay within the approved scope in the handoff.
 Return:
 1) changed files
