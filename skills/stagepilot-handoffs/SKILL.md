@@ -53,6 +53,13 @@ For artifact-backed delivery, also include:
 - delivery state path
 - `owner_target` (`delivery-runner`)
 - `status` (normally `ready`)
+
+Isolation rule for mutable delivery artifacts:
+- If the runner is expected to work in an isolated delivery worktree, any kickoff/state/batch queue artifacts that the runner will mutate should be worktree-local or explicitly declared as lead-checkout control-plane artifacts.
+- Do not hand the runner absolute mutable artifact paths in the lead/main checkout while instructing it to create delivery docs and PR-bound changes in the isolated worktree; that causes split-brain delivery state.
+- If `lead-launch-runner.sh --workdir` is used to relaunch an existing worktree, prefer kickoff/state paths inside that worktree.
+- If the launcher auto-prepares a worktree from lead-checkout kickoff/state paths, the handoff must clearly distinguish which artifacts remain lead-visible control-plane state and which project docs must be created in the delivery worktree.
+
 - `current_stage` (`kickoff`)
 - `goal`
 - `updated_at`
