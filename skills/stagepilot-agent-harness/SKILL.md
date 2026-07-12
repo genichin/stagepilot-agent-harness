@@ -35,6 +35,8 @@ Use this skill when you need to:
 
 Do not use this skill as a substitute for project-specific implementation instructions. Pair it with a project overlay or delivery skill when work moves into concrete repo changes.
 
+Runtime provisioning is part of applying the harness: the repo's `skills/` catalog includes both core skills and workflow skills such as `confirm-req`, `draft-req`, `run-sdlc`, batch, and release skills. See `references/runtime-skill-export-and-req-approval.md` when workflow skills appear missing or when approval-set behavior is unclear.
+
 ## Core operating model
 
 ### Role intent
@@ -49,6 +51,7 @@ Do not use this skill as a substitute for project-specific implementation instru
 ### Default operating rules that should stay synchronized with core docs
 
 - After `confirm-req`, the lead may issue `lead -> delivery-runner` kickoff automatically unless the user explicitly asked to hold, defer, batch later, or wait for another confirmation point.
+- `confirm-req` approval and delivery slicing are separate decisions: when a confirmed Discovery produced multiple eligible Proposed REQs, the approval gate should evaluate and approve the eligible REQ set together; the runner later groups/splits that Approved set into batches, PRs, and implementation slices.
 - The default `lead -> delivery-runner` root transport is a kickoff artifact plus delivery-state record; optional Telegram notification may mirror kickoff for visibility, but notification is not the source of truth.
 - The default root launcher (`scripts/lead-launch-runner.sh`) prepares a dedicated git worktree/branch per kickoff and runs `delivery-runner` inside it so lead/human Discovery edits in the main checkout do not contaminate the delivery PR branch.
 - Downstream `delivery-runner -> dev-impl` and `delivery-runner -> dev-qc` handoffs are transport-agnostic by default and must not use kanban.
@@ -97,6 +100,8 @@ Use this decision rule:
 3. **Letting the runner become a shadow lead.** Runner may choose delivery grouping inside approved scope, but does not redefine scope, priority, or approvals.
 4. **Collapsing impl and QC into one worker mindset.** Independent verification is part of the operating model, not optional ceremony.
 5. **Updating core docs without updating the corresponding skills/templates.** This creates execution drift between human docs and runtime guidance.
+6. **Mistaking partial runtime export for a complete harness install.** The current harness catalog includes workflow skills (`confirm-req`, `draft-req`, `run-sdlc`, batch/release skills) as well as the four core skills. If only the core skills are installed, export the full catalog from the harness repo to every active team profile; do not conclude that `confirm-req` does not exist.
+7. **Approving only the first implementation slice.** `confirm-req` approves eligible Proposed REQs as delivery input. Implementation order, dependency sequencing, or small PR slicing belongs after approval and should not leave sibling eligible REQs in Proposed solely because they will be implemented later.
 
 ## Verification Checklist
 
