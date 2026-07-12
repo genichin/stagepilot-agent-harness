@@ -14,11 +14,12 @@ It compares:
 | Source | Count | Notes |
 |---|---:|---|
 | Historical StagePilot workflow inventory | 21 | Full workflow catalog that was consolidated into this repo |
+| New harness-native Discovery delivery workflow | 1 | `run-discovery-delivery`, added after consolidation to make Discovery-level multi-REQ orchestration first-class |
 | Existing harness-core skills | 3 | Topology, handoff, and harness umbrella skills |
 | Added operational tooling skills | 1 | `stagepilot-doctor-ops` |
-| `stagepilot-agent-harness/skills/` current total | 25 | 21 imported + 3 harness-core + 1 operational |
+| `stagepilot-agent-harness/skills/` current total | 26 | 21 imported + 1 new Discovery-delivery workflow + 3 harness-core + 1 operational |
 
-Migration check result: **all 21 StagePilot skills are present in `stagepilot-agent-harness/skills/`**.
+Migration check result: **all 21 historical StagePilot skills are present in `stagepilot-agent-harness/skills/`**, plus one harness-native `run-discovery-delivery` workflow skill.
 
 ## Imported skill families
 
@@ -52,6 +53,7 @@ Migration check result: **all 21 StagePilot skills are present in `stagepilot-ag
 
 ### Orchestration family
 - `run-sdlc`
+- `run-discovery-delivery`
 
 ### Harness-core family
 - `stagepilot-agent-harness`
@@ -71,7 +73,7 @@ No exact duplicate skill names or 1:1 duplicate responsibilities were found acro
 
 | Skills | Overlap type | Current recommendation |
 |---|---|---|
-| `run-sdlc` vs `run-batch-delivery` | Both orchestrate multi-step flow | **Keep both**. `run-sdlc` is cross-lifecycle routing; `run-batch-delivery` is batch-scoped execution chaining. |
+| `run-sdlc` vs `run-discovery-delivery` vs `run-batch-delivery` | All orchestrate multi-step flow at different scopes | **Keep all three**. `run-sdlc` is cross-lifecycle routing, `run-discovery-delivery` is Discovery-root batch queue orchestration, and `run-batch-delivery` is one-batch execution chaining. |
 | `review-discovery` vs `confirm-discovery` | Both inspect Discovery quality | **Keep both**. `review-discovery` is a non-gating review helper; `confirm-discovery` performs approval/state transition. |
 | `stagepilot-agent-harness` vs imported SDLC skills | Both discuss StagePilot operating behavior | **Keep both**. The harness skill is topology/operating-model guidance; the imported skills are concrete SDLC procedures. |
 | `stagepilot-doctor-ops` vs doctor guidance embedded in workflow skills | Both mention doctor checks | **Keep both**. Embedded guidance stays lightweight, while `stagepilot-doctor-ops` is the dedicated execution/triage manual. |
@@ -127,8 +129,8 @@ The current catalog still has meaningful gaps around operational tooling that al
 
 ## Recommended target model
 
-1. Keep the **25 current skills** in the harness repo.
-2. Treat the **21 imported StagePilot skills** as the canonical SDLC workflow layer.
+1. Keep the **26 current skills** in the harness repo.
+2. Treat the **21 imported StagePilot skills** plus harness-native **`run-discovery-delivery`** as the canonical SDLC workflow layer.
 3. Treat the **3 harness-core skills** as the canonical multi-agent operating layer.
 4. Treat **`stagepilot-doctor-ops`** as the canonical validation/triage layer.
 5. Add bootstrap-seed and catalog-governance skills next instead of deleting current workflow skills prematurely.

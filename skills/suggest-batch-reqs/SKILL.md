@@ -33,7 +33,7 @@ This skill recommends one or more candidate batch groupings from approved requir
 # Inputs
 
 - 선택 입력
-  - `DISCOVERY_ID` 또는 Approved `REQ-ID` 목록
+  - `DISCOVERY_ID`, Discovery-level root state path, or Approved `REQ-ID` 목록
   - 입력이 없으면 `docs/srs/**/req-*.md`와 `docs/srs/index.md`를 읽어 Approved REQ를 찾는다.
   - 입력이 없으면 `docs/batches/index.md`도 함께 읽어 이미 batch에 편성된 REQ를 제외한다.
 - 선택 입력
@@ -66,6 +66,7 @@ This skill recommends one or more candidate batch groupings from approved requir
 ## Runner-driven selection rule
 
 - 추천 결과 중 기본 채택 후보를 고르는 책임은 기본적으로 `delivery-runner`에 있다.
+- Discovery-level root 입력에서는 이미 Implemented인 연결 REQ를 제외하고 remaining Approved REQ만 후보로 삼으며, 출력은 runner가 `batch-queue.json`에 옮길 수 있는 순서/의존성 근거를 포함해야 한다.
 - 이 skill 자체는 저장소를 수정하지 않지만, runner는 이 결과를 근거로 `draft-batch`를 이어서 실행할 수 있다.
 - 다만 후보 선택이 승인된 scope를 사실상 바꾸거나, priority/release policy 판단을 요구하거나, 사용자가 명시적으로 hold/defer를 걸어 둔 경우에는 runner가 lead로 escalate해야 한다.
 - 후보 간 우열이 애매하면 `기본안` 1개와 `보수적 대안` 1개 이상을 함께 제시하고 trade-off를 설명한다.
@@ -119,6 +120,7 @@ This skill recommends one or more candidate batch groupings from approved requir
 - 후보별 위험도 (`Low|Medium|High`)
 - 후보별 신뢰도 (`High|Medium|Low`)
 - 후보별 예상 batch profile (`standard` | `batch-lite`)과 판단 근거
+- Discovery-level root라면 권장 queue order와 각 queue item의 included REQ / dependency reason
 - `draft-batch` 추천 명령 예시
 - 기본 채택 주체가 `delivery-runner`이며 어떤 경우 lead escalation이 필요한지에 대한 안내
 - 단, 추천 가능한 신규 batch가 없으면 아래 형식으로 대체 보고할 수 있다.

@@ -7,6 +7,7 @@ The delivery-runner converts approved work into a managed delivery chain.
 ## Responsibilities
 
 - consume approved lead handoff
+- when the handoff is a Discovery-level root, resolve the Discovery's Implemented vs remaining Approved REQs and own the resulting batch queue
 - choose batch grouping and delivery slicing within already-approved REQ scope
 - manage the sequence of batch / planning / design / implementation / verification after approved REQ input exists
 - own default `draft-batch` execution for approved REQ sets inside approved scope, including `minor-change -> batch-lite` starts unless escalation is required
@@ -38,7 +39,7 @@ Kanban-backed delivery is forbidden. A `delivery-runner` should have at most one
 - The root delivery-state record is the canonical machine-readable artifact and should normally carry at least `status`, `current_stage`, `owner_target`, `goal`, `kickoff_artifact`, and `updated_at`; blocked states should also carry `blocker_code`, `blocker_detail` when needed, `evidence_paths`, and `next_action`.
 - Escalations should be written as explicit persisted artifacts with `reason_class`, `blocker_code`, `blocker_summary`, options considered, recommendation, and the lead decision required; prose-only escalation without a machine-readable blocker trail is not the preferred default.
 - After each worker returns, the runner should record evidence paths or QC verdict data back into the delivery/verification trail before advancing.
-- By default, the runner should organize Git delivery around one primary pull request per active root kickoff item so the PR boundary matches the approved scope and completion semantics of that kickoff. If one kickoff legitimately needs multiple PRs, the split should be explicit in the overlay or kickoff context rather than invented silently mid-run.
+- By default, the runner should organize Git delivery around one primary pull request per active root kickoff item so the PR boundary matches the approved scope and completion semantics of that kickoff. If one kickoff legitimately needs multiple PRs, the split should be explicit in the overlay or kickoff context rather than invented silently mid-run. A Discovery-level root handoff is the standard explicit multi-batch exception: the runner may create one PR per queued batch or a grouped PR plan, but must record the batch queue and keep the root state open until all remaining Approved REQs are Implemented, deferred, or escalated.
 - Early in a PR-bound kickoff, the runner should run publication-auth preflight from the isolated delivery worktree before burning substantial impl/QC effort. Minimum checks: `git remote get-url origin`, `gh auth status`, `git ls-remote origin`, and `git push --dry-run origin HEAD:refs/heads/<current-branch>`; the standard helper is `scripts/check-publication-auth.sh --json`.
 - If publication preflight fails, the runner should stop early and record an explicit blocked/escalation code such as `publication_auth_missing`, `publication_auth_missing:gh_auth_status_failed`, or `publication_auth_missing:push_dry_run_failed`.
 - By default, the runner should execute that kickoff inside a dedicated git worktree/branch prepared for the kickoff rather than in the lead/human checkout.

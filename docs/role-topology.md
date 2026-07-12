@@ -15,6 +15,7 @@ This keeps user-facing work free from long-running execution while preserving re
 
 - `<project>-dev-lead` owns Discovery drafting, Discovery approval, REQ drafting, REQ approval, clarification, prioritization, and user-facing scope decisions.
 - `delivery-runner` begins after approved Discovery and approved REQ handoff, chooses batch grouping and delivery slicing within approved scope, owns default `draft-batch` execution for approved REQ sets inside that scope, and does not own Discovery drafting, Discovery approval, REQ drafting, or REQ approval.
+- For a Discovery-level root handoff, `delivery-runner` owns the approved-REQ batch queue: it resolves the Discovery's Implemented vs remaining Approved REQs, creates/adopts batches, executes one batch at a time, and updates root queue state until the Discovery root is `done`, `blocked`, or explicitly deferred/escalated.
 - `dev-impl` and `dev-qc` operate on approved scope rather than redefining Discovery intent.
 
 ## Post-REQ kickoff rule
@@ -29,7 +30,7 @@ Default post-REQ behavior:
 - The runner claims that kickoff only through the documented artifact/state claim semantics.
 - Default concurrency is one root kickoff item in active execution per runner globally unless a project overlay documents otherwise.
 - Downstream impl/QC handoffs stay transport-agnostic and must not use kanban.
-- One root kickoff item maps to one primary PR by default.
+- One root kickoff item maps to one primary PR by default. A Discovery-level root is the explicit exception: it may own a multi-batch queue and therefore multiple batch PRs when the kickoff context says so.
 - Lead/human live Discovery edits stay in the main checkout by default; they do not automatically flow into the isolated runner worktree.
 - The runner may open/update that PR, but the default merge decision belongs to the lead before post-merge `confirm-req-implemented`.
 

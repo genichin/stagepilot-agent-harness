@@ -9,7 +9,7 @@ user-invocable: true
 metadata:
   hermes:
     tags: [stage-pilot, orchestration, workflow, execution, sdlc]
-    related_skills: [bootstrap-baseline, new-discovery, draft-req, draft-batch, run-batch-delivery, draft-release, stagepilot-agent-harness, stagepilot-doctor-ops]
+    related_skills: [bootstrap-baseline, new-discovery, draft-req, draft-batch, run-discovery-delivery, run-batch-delivery, draft-release, stagepilot-agent-harness, stagepilot-doctor-ops]
 ---
 
 # Purpose
@@ -59,8 +59,8 @@ This skill inspects the current state of Discovery, REQ, Batch, and Release docu
 
 - Discovery가 아직 `confirmed`가 아니면 `confirm-discovery`를 우선 실행한다.
 - Discovery는 confirmed지만 연결된 REQ가 없으면 `draft-req`를 다음 단계로 사용한다.
-- `Approved` REQ는 있으나 batch가 없으면 `suggest-batch-reqs`를 실행해 `delivery-runner`가 batch 후보를 정리하도록 보낸다. 사용자의 hold나 추가 승인 요구가 없으면 runner는 추천 결과를 근거로 runner-owned `draft-batch`까지 이어 갈 수 있다.
-- batch가 이미 생성되었고 delivery chain을 한 번에 이어서 진행하려면 `run-batch-delivery`를 직접 entrypoint로 사용할 수 있다.
+- `Approved` REQ는 있으나 batch가 없으면 기본적으로 `run-discovery-delivery`를 통해 `delivery-runner`가 Discovery-level root delivery를 시작한다. 이 root flow는 `suggest-batch-reqs`로 batch 후보를 정리하고, hold나 추가 승인 요구가 없으면 runner-owned `draft-batch` 및 queue 실행으로 이어진다.
+- batch가 이미 생성되었고 Discovery root queue가 없거나 단일 batch만 직접 재개하려면 `run-batch-delivery`를 직접 entrypoint로 사용할 수 있다. Discovery root queue가 존재하면 `run-discovery-delivery`가 current batch부터 이어 가는 상위 entrypoint다.
 - baseline 문서 갭이 있으면 상태 요약에 `docs/project-structure.md`와 `docs/runtime-flows.md` 갱신 필요 여부를 함께 기록한다.
 
 ## 3. REQ 기준 routing
@@ -69,7 +69,7 @@ This skill inspects the current state of Discovery, REQ, Batch, and Release docu
 - 기존 REQ의 `Requirement`, `Acceptance Criteria`, 구현 전제가 바뀌어 Change Log 기반 변경 관리가 필요하면 `change-req`를 다음 단계로 사용한다.
 - `Approved` REQ가 `merged` 또는 `released` batch의 verification evidence와 연결돼 있으면 `confirm-req-implemented`를 다음 단계로 사용한다.
 - 단일 `Approved` REQ이고 구조/인터페이스/런타임 영향이 없는 소규모 변경이면 `delivery-runner`가 `draft-batch`를 `minor-change -> batch-lite` 경로로 바로 진행할 수 있다.
-- Approved REQ 묶음이 2개 이상이면 기본적으로 `delivery-runner`가 `suggest-batch-reqs`를 통해 grouping을 정리하고, hold 지시가 없으면 runner-owned `draft-batch`로 이어진다. 다만 scope, priority, release policy를 바꾸는 판단은 lead escalation이 필요하다.
+- Approved REQ 묶음이 2개 이상이면 기본적으로 `delivery-runner`가 `run-discovery-delivery` 아래에서 `suggest-batch-reqs`를 통해 grouping을 정리하고, hold 지시가 없으면 runner-owned `draft-batch`와 sequential batch queue 실행으로 이어진다. 다만 scope, priority, release policy를 바꾸는 판단은 lead escalation이 필요하다.
 - baseline 문서 갱신이 REQ에 포함돼 있으면 상태 요약에 이를 반영한다.
 
 ## 4. Batch 기준 routing
@@ -95,7 +95,7 @@ This skill inspects the current state of Discovery, REQ, Batch, and Release docu
 - 입력으로 해석한 단위 종류
 - 현재 상태 요약
 - baseline 문서 상태 (`present` | `missing` | `update-likely-required` | `bootstrap-required`)
-- 바로 실행할 다음 skill 1개 또는 다음 연쇄(`suggest-batch-reqs -> draft-batch`, `run-batch-delivery` 등)
+- 바로 실행할 다음 skill 1개 또는 다음 연쇄(`run-discovery-delivery`, `suggest-batch-reqs -> draft-batch`, `run-batch-delivery` 등)
 - 자동으로 진행하지 않고 멈춘 이유가 있으면 그 사유 (`user hold`, approval gate, missing evidence, escalation required 등)
 
 # Validation

@@ -11,7 +11,7 @@ Artifact creation alone does not start execution. The lead must explicitly launc
 ## Required fields
 
 - approved discovery reference
-- approved REQ reference
+- approved REQ reference or approved REQ set
 - project / repo path
 - current goal
 - explicit scope boundaries
@@ -19,6 +19,16 @@ Artifact creation alone does not start execution. The lead must explicitly launc
 - expected reporting cadence or milestones
 - kickoff artifact path
 - delivery state path
+
+For a Discovery-level root handoff, also include:
+
+- `root_type = discovery`
+- confirmed Discovery id/path
+- already Implemented REQs from that Discovery
+- remaining Approved REQs to deliver
+- explicit instruction that runner must create/adopt a batch queue and execute batches sequentially
+- explicit non-goal: do not forward the whole Discovery as one direct `dev-impl` task
+- done definition for the root Discovery delivery
 
 If the handoff is emitted through artifact-backed transport, also set at minimum:
 
@@ -36,6 +46,7 @@ Strongly recommended root state fields at kickoff time:
 - `next_action = launch_runner`
 - `evidence_paths` (may initially include only the kickoff artifact)
 - `pr_ref` when the kickoff already maps to a known delivery branch/PR plan
+- `batch_queue` / `batch_queue_path`, `current_batch`, `implemented_reqs`, and `remaining_approved_reqs` for Discovery-level roots
 
 See `docs/state-machine.md` for the canonical root delivery-state and escalation artifact schema.
 

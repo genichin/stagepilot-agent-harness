@@ -11,10 +11,10 @@ This repository keeps StagePilot-related Hermes skills **inside the project** an
 
 ## Current skill set
 
-The harness currently carries **25 skills**:
+The harness currently carries **26 skills**:
 
 - **3 harness-core skills** authored in this repository
-- **21 consolidated StagePilot workflow skills** now maintained in this repository
+- **22 consolidated StagePilot workflow skills** now maintained in this repository
 - **1 operational tooling skill** for doctor execution and triage
 
 ### Harness-core skills
@@ -64,6 +64,7 @@ The harness currently carries **25 skills**:
 | `draft-batch-verification` | Draft verification evidence for a batch |
 | `confirm-batch-verification` | Promote a verified batch to release-candidate |
 | `run-batch-delivery` | Orchestrate the full delivery chain for one batch |
+| `run-discovery-delivery` | Orchestrate a confirmed Discovery root through approved REQ batch queue delivery |
 
 #### Release and feedback loop
 
@@ -96,7 +97,7 @@ The harness currently carries **25 skills**:
 ## Optimization notes
 
 - The imported StagePilot skills, the harness-core skills, and the doctor operations skill are **complementary**, not exact duplicates.
-- `run-sdlc` and `run-batch-delivery` remain distinct entrypoints.
+- `run-sdlc`, `run-discovery-delivery`, and `run-batch-delivery` remain distinct entrypoints: routing, Discovery-root queue orchestration, and one-batch delivery respectively.
 - `review-discovery` remains useful as a non-state-changing quality gate even though `confirm-discovery` performs deeper approval work.
 - Skills that explicitly depend on doctor checks now link to `stagepilot-doctor-ops` through `related_skills` metadata.
 - Gaps and merge candidates are tracked in `docs/skill-audit.md`.

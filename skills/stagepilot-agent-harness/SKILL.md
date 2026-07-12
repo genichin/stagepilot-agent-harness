@@ -64,7 +64,7 @@ Runtime provisioning is part of applying the harness: the repo's `skills/` catal
 - `scripts/runner-launch-impl.sh` supports `--preset default|stretched|long-run` for the standard supervision budgets; explicit minute flags may still override when a justified nonstandard budget is needed.
 - Default downstream mode remains foreground bounded execution; `--background` is optional only for materially long-running or resumable child work.
 - Unless a project overlay documents otherwise, a `delivery-runner` should have at most one root kickoff item in active execution globally.
-- By default, one root kickoff item maps to one primary pull request. Any one-kickoff-to-many-PR split should be explicit in the project overlay or kickoff note.
+- By default, one root kickoff item maps to one primary pull request. Discovery-level root delivery is the explicit core exception: a confirmed Discovery root may own a batch queue and multiple batch PRs when the kickoff names the Approved/Implemented REQ set and the runner records queue state.
 - Early in a PR-bound kickoff, the runner should run publication auth preflight from the isolated delivery worktree before spending substantial impl/QC time. Standard helper: `scripts/check-publication-auth.sh --json`, which checks remote presence, `gh auth status`, `git ls-remote origin`, and `git push --dry-run origin HEAD:refs/heads/<current-branch>`.
 - If that preflight fails, the runner should stop early and record a blocked/escalation reason like `publication_auth_missing` or a narrower helper-derived suffix.
 - Live post-kickoff Discovery/REQ edits must not flow automatically into the runner delivery branch; importing them requires explicit lead re-handoff or sync direction.
@@ -102,6 +102,8 @@ Use this decision rule:
 5. **Updating core docs without updating the corresponding skills/templates.** This creates execution drift between human docs and runtime guidance.
 6. **Mistaking partial runtime export for a complete harness install.** The current harness catalog includes workflow skills (`confirm-req`, `draft-req`, `run-sdlc`, batch/release skills) as well as the four core skills. If only the core skills are installed, export the full catalog from the harness repo to every active team profile; do not conclude that `confirm-req` does not exist.
 7. **Approving only the first implementation slice.** `confirm-req` approves eligible Proposed REQs as delivery input. Implementation order, dependency sequencing, or small PR slicing belongs after approval and should not leave sibling eligible REQs in Proposed solely because they will be implemented later.
+8. **Confusing Discovery root handoff with direct implementation handoff.** It is valid for the lead to hand a confirmed Discovery plus its Approved/Implemented REQ set to `delivery-runner` as a root delivery objective. The runner must then create/select batches and smaller impl/QC handoffs; do not forbid the root Discovery handoff merely because direct `dev-impl` work must be sliced.
+9. **Treating one completed batch as a completed Discovery root.** A Discovery root remains open until every remaining Approved REQ in its queue is Implemented, explicitly deferred, or escalated with lead-visible evidence.
 
 ## Verification Checklist
 

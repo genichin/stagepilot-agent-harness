@@ -47,6 +47,8 @@ The root delivery-state record is the canonical machine-readable status artifact
 
 ### Strongly recommended fields
 
+- `root_type`: `req`, `batch`, or `discovery`; use `discovery` when the kickoff is a confirmed Discovery root that owns a batch queue
+- `discovery_id`: required when `root_type=discovery`
 - `approved_refs`: approved Discovery / REQ references anchoring scope
 - `scope_summary`: short scope statement for this kickoff
 - `current_handoff_artifact`: currently active impl/QC/escalation/completion artifact path when one exists
@@ -55,6 +57,11 @@ The root delivery-state record is the canonical machine-readable status artifact
 - `evidence_paths`: artifact or evidence paths relevant to the current state
 - `next_action`: expected next orchestration action such as `launch_impl`, `launch_qc`, `rework_impl`, `escalate_to_lead`, or `lead_merge_review`
 - `pr_ref`: primary PR URL/number/branch note for the kickoff when applicable
+- `implemented_reqs`: REQs from the root Discovery already synchronized to `Implemented`
+- `remaining_approved_reqs`: Approved REQs still needing delivery under the root Discovery
+- `batch_queue`: queue items or path to `batch-queue.json` for Discovery-level roots
+- `current_batch`: active batch id/path when a Discovery-level root is executing a queue
+- `completed_batches`: completed batch ids/paths for Discovery-level roots
 - `verdict_count_for_scope`: QC verdict count for the same acceptance scope when QC looping is active
 
 ### State-specific requirements
@@ -62,7 +69,7 @@ The root delivery-state record is the canonical machine-readable status artifact
 - `ready`: include `owner_target=delivery-runner`, kickoff references, and enough scope context for claim.
 - `running`: include the claimed owner plus `current_stage` and active handoff/evidence trail.
 - `blocked`: include `blocker_code`, human-readable blocker summary, and `next_action`.
-- `done`: include evidence paths and merge/release review hand-back context.
+- `done`: include evidence paths and merge/release review hand-back context. For `root_type=discovery`, `done` requires every linked Approved REQ to be `Implemented`, explicitly deferred by lead decision, or represented by a lead-visible escalation/blocked record.
 - `archived`: include closure reason so terminal historical closure is not confused with successful completion.
 
 ### Normalization rules
@@ -70,6 +77,23 @@ The root delivery-state record is the canonical machine-readable status artifact
 - Legacy `claimed` and `in_progress` values should be read as `running` and normalized on the next write.
 - `done` is the required successful root completion signal; `archived` is not a success synonym.
 - `current_stage` is intentionally narrower than `status`: many stages may map to `running`.
+
+### Discovery-level root queue fields
+
+A Discovery-level root should use a root state plus an optional `batch-queue.json` artifact. Queue item states follow the same canonical state vocabulary where practical: `ready`, `running`, `blocked`, `done`, or `archived`. The runner advances only one queue item at a time unless a project overlay explicitly permits parallel batch execution.
+
+Minimum Discovery root fields:
+
+- `root_type = discovery`
+- `discovery_id`
+- `implemented_reqs`
+- `remaining_approved_reqs`
+- `batch_queue` or `batch_queue_path`
+- `current_batch`
+- `completed_batches`
+- `done_definition`
+
+A Discovery root must not be marked `done` merely because one batch completed. It is `done` only when the queue has no remaining non-deferred Approved REQ work and the REQ state/evidence trail is synchronized.
 
 ### Example record
 

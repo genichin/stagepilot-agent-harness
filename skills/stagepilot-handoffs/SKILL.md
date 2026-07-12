@@ -31,7 +31,7 @@ Use when you need to:
 ### lead -> delivery-runner
 Must include:
 - approved Discovery reference
-- approved REQ reference
+- approved REQ reference or approved REQ set
 - objective
 - scope and non-goals
 - acceptance definition
@@ -39,6 +39,14 @@ Must include:
 - constraints or approvals already granted
 - escalation triggers
 - expected reporting cadence
+
+For Discovery-level root delivery, also include:
+- `root_type=discovery`
+- confirmed Discovery id/path
+- already Implemented REQs and remaining Approved REQs
+- runner obligation to create/adopt a batch queue and execute one batch at a time
+- explicit non-goal: do not send the full Discovery as one unsliced direct implementation handoff
+- root done definition
 
 For artifact-backed delivery, also include:
 - kickoff artifact path
