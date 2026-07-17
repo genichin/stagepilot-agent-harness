@@ -163,14 +163,16 @@ This repository now treats `skills/` as part of the harness source tree and as t
 - `scripts/export_skills.py` can export the in-repo skills into a target Hermes skills directory.
 - `docs/skills.md` tracks the current catalog and `docs/skill-audit.md` tracks overlap, gap, and optimization analysis.
 
-The current catalog contains:
+The current catalog contains **28 skills**:
 
 - **3 harness-core skills**
   - `skills/stagepilot-agent-harness/`
   - `skills/stagepilot-role-topology/`
   - `skills/stagepilot-handoffs/`
-- **1 operational tooling skill**
+- **3 operational governance skills**
+  - `skills/stagepilot-bootstrap-seed-ops/`
   - `skills/stagepilot-doctor-ops/`
+  - `skills/stagepilot-skill-catalog-governance/`
 - **22 consolidated StagePilot workflow skills**
   - discovery, requirements, batch, release, and orchestration skills now maintained directly in this repo
 

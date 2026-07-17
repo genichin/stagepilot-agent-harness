@@ -11,11 +11,11 @@ This repository keeps StagePilot-related Hermes skills **inside the project** an
 
 ## Current skill set
 
-The harness currently carries **26 skills**:
+The harness currently carries **28 skills**:
 
 - **3 harness-core skills** authored in this repository
 - **22 consolidated StagePilot workflow skills** now maintained in this repository
-- **1 operational tooling skill** for doctor execution and triage
+- **3 operational governance skills** for doctor execution, catalog governance, and explicit-target bootstrap provisioning
 
 ### Harness-core skills
 
@@ -25,11 +25,13 @@ The harness currently carries **26 skills**:
 | `stagepilot-role-topology` | Role boundaries, ownership, escalation model |
 | `stagepilot-handoffs` | Canonical handover contracts and payload expectations |
 
-### Operational tooling skill
+### Operational governance skills
 
 | Skill | Purpose |
 |---|---|
+| `stagepilot-bootstrap-seed-ops` | Plan, apply, verify, and report fixture-safe explicit-target profile bootstrap operations |
 | `stagepilot-doctor-ops` | Run, interpret, classify, and rerun `stagepilot-doctor` checks with explicit blocker vs expected-warning triage |
+| `stagepilot-skill-catalog-governance` | Govern skill lifecycle, ownership, validation, deprecation, export boundary, and audit evidence |
 
 ### Imported StagePilot workflow skills
 
@@ -85,8 +87,10 @@ The harness currently carries **26 skills**:
 1. Update core docs first.
 2. Reflect the same operational rule in the relevant `SKILL.md` file.
 3. When StagePilot SDLC behavior changes, update both the imported workflow skill and any overlapping harness-core or operational skill.
-4. Run `python3 scripts/verify_structure.py`.
-5. Export skills with `python3 scripts/export_skills.py --dest <path>` when you want a Hermes runtime copy.
+4. Run `python3 scripts/validate_skill_catalog.py --root . --format json` and `python3 scripts/verify_structure.py`.
+5. Inspect a proposed release without mutation using `python3 scripts/export_skills.py --dest <path> --dry-run`.
+6. Export only to an explicit destination with `python3 scripts/export_skills.py --dest <path>`; export stages and atomically promotes only after source validation. Stale skill directories are preserved by default; use `--prune` only after reviewing them.
+7. Confirm destination parity with `python3 scripts/verify_runtime_skill_sync.py --source . --dest <path> --format json`.
 
 ## Repository policy for the `skills/` directory
 

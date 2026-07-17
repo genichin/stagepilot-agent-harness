@@ -1,0 +1,38 @@
+{
+  "schema_version": 1,
+  "catalog": {
+    "version": "1.1.0",
+    "owner": "stagepilot-catalog-maintainer",
+    "reviewer": "stagepilot-governance-reviewer"
+  },
+  "skills": {
+    "bootstrap-baseline": {"version": "1.0.1", "lifecycle": "active", "owner": "stagepilot-workflow-maintainer", "reviewer": "stagepilot-governance-reviewer"},
+    "capture-release-feedback": {"version": "0.6.0", "lifecycle": "active", "owner": "stagepilot-workflow-maintainer", "reviewer": "stagepilot-governance-reviewer"},
+    "change-req": {"version": "0.8.1", "lifecycle": "active", "owner": "stagepilot-workflow-maintainer", "reviewer": "stagepilot-governance-reviewer"},
+    "confirm-batch-verification": {"version": "0.8.1", "lifecycle": "active", "owner": "stagepilot-workflow-maintainer", "reviewer": "stagepilot-governance-reviewer"},
+    "confirm-discovery": {"version": "0.9.1", "lifecycle": "active", "owner": "stagepilot-workflow-maintainer", "reviewer": "stagepilot-governance-reviewer"},
+    "confirm-release": {"version": "0.8.0", "lifecycle": "active", "owner": "stagepilot-workflow-maintainer", "reviewer": "stagepilot-governance-reviewer"},
+    "confirm-req": {"version": "0.9.1", "lifecycle": "active", "owner": "stagepilot-workflow-maintainer", "reviewer": "stagepilot-governance-reviewer"},
+    "confirm-req-implemented": {"version": "0.7.0", "lifecycle": "active", "owner": "stagepilot-workflow-maintainer", "reviewer": "stagepilot-governance-reviewer"},
+    "draft-batch": {"version": "0.9.3", "lifecycle": "active", "owner": "stagepilot-workflow-maintainer", "reviewer": "stagepilot-governance-reviewer"},
+    "draft-batch-design": {"version": "0.8.0", "lifecycle": "active", "owner": "stagepilot-workflow-maintainer", "reviewer": "stagepilot-governance-reviewer"},
+    "draft-batch-planning": {"version": "0.8.0", "lifecycle": "active", "owner": "stagepilot-workflow-maintainer", "reviewer": "stagepilot-governance-reviewer"},
+    "draft-batch-verification": {"version": "0.8.2", "lifecycle": "active", "owner": "stagepilot-workflow-maintainer", "reviewer": "stagepilot-governance-reviewer"},
+    "draft-release": {"version": "0.8.1", "lifecycle": "active", "owner": "stagepilot-workflow-maintainer", "reviewer": "stagepilot-governance-reviewer"},
+    "draft-req": {"version": "1.0.4", "lifecycle": "active", "owner": "stagepilot-workflow-maintainer", "reviewer": "stagepilot-governance-reviewer"},
+    "new-discovery": {"version": "1.0.2", "lifecycle": "active", "owner": "stagepilot-workflow-maintainer", "reviewer": "stagepilot-governance-reviewer"},
+    "review-discovery": {"version": "0.8.0", "lifecycle": "active", "owner": "stagepilot-workflow-maintainer", "reviewer": "stagepilot-governance-reviewer"},
+    "run-batch-delivery": {"version": "0.7.1", "lifecycle": "active", "owner": "stagepilot-workflow-maintainer", "reviewer": "stagepilot-governance-reviewer"},
+    "run-batch-implementation": {"version": "0.7.2", "lifecycle": "active", "owner": "stagepilot-workflow-maintainer", "reviewer": "stagepilot-governance-reviewer"},
+    "run-discovery-delivery": {"version": "0.1.0", "lifecycle": "active", "owner": "stagepilot-workflow-maintainer", "reviewer": "stagepilot-governance-reviewer"},
+    "run-sdlc": {"version": "0.7.0", "lifecycle": "active", "owner": "stagepilot-workflow-maintainer", "reviewer": "stagepilot-governance-reviewer"},
+    "stagepilot-agent-harness": {"version": "1.0.0", "lifecycle": "active", "owner": "stagepilot-operating-model-maintainer", "reviewer": "stagepilot-governance-reviewer"},
+    "stagepilot-bootstrap-seed-ops": {"version": "1.0.0", "lifecycle": "active", "owner": "stagepilot-operating-model-maintainer", "reviewer": "stagepilot-governance-reviewer"},
+    "stagepilot-doctor-ops": {"version": "1.0.0", "lifecycle": "active", "owner": "stagepilot-runtime-maintainer", "reviewer": "stagepilot-governance-reviewer"},
+    "stagepilot-handoffs": {"version": "1.0.0", "lifecycle": "active", "owner": "stagepilot-operating-model-maintainer", "reviewer": "stagepilot-governance-reviewer"},
+    "stagepilot-skill-catalog-governance": {"version": "1.0.0", "lifecycle": "active", "owner": "stagepilot-catalog-maintainer", "reviewer": "stagepilot-governance-reviewer"},
+    "stagepilot-role-topology": {"version": "1.0.0", "lifecycle": "active", "owner": "stagepilot-operating-model-maintainer", "reviewer": "stagepilot-governance-reviewer"},
+    "suggest-batch-reqs": {"version": "0.8.2", "lifecycle": "active", "owner": "stagepilot-workflow-maintainer", "reviewer": "stagepilot-governance-reviewer"},
+    "suggest-next-discovery": {"version": "0.6.0", "lifecycle": "active", "owner": "stagepilot-workflow-maintainer", "reviewer": "stagepilot-governance-reviewer"}
+  }
+}

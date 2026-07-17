@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from validate_skill_catalog import validate_catalog
+
 REQUIRED = [
     'README.md',
     'docs/architecture.md',
@@ -17,23 +19,11 @@ REQUIRED = [
     'skills/stagepilot-role-topology/SKILL.md',
     'skills/stagepilot-handoffs/SKILL.md',
     'scripts/export_skills.py',
+    'scripts/validate_skill_catalog.py',
+    'governance/skill-catalog.json',
+    'requirements.txt',
+    'skills/stagepilot-skill-catalog-governance/SKILL.md',
 ]
-REQUIRED_FRONTMATTER_KEYS = ('name:', 'description:')
-
-
-def verify_skill(path: Path) -> list[str]:
-    errors: list[str] = []
-    content = path.read_text(encoding='utf-8')
-    if not content.startswith('---\n'):
-        errors.append(f'{path}: missing opening frontmatter marker')
-        return errors
-    if '\n---\n' not in content[4:]:
-        errors.append(f'{path}: missing closing frontmatter marker')
-        return errors
-    for key in REQUIRED_FRONTMATTER_KEYS:
-        if key not in content:
-            errors.append(f'{path}: missing frontmatter key {key}')
-    return errors
 
 
 def main() -> int:
@@ -44,17 +34,13 @@ def main() -> int:
             print(f'MISSING: {item}')
         return 1
 
-    errors: list[str] = []
-    skills_root = root / 'skills'
-    for skill_path in sorted(skills_root.glob('*/SKILL.md')):
-        errors.extend(verify_skill(skill_path))
-
+    errors, skill_count = validate_catalog(root)
     if errors:
         for error in errors:
             print(f'ERROR: {error}')
         return 1
 
-    print('OK: required scaffold files and skill frontmatter present')
+    print(f'OK: required scaffold files and validated skill catalog present ({skill_count} skill(s))')
     return 0
 
 

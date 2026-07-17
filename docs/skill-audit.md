@@ -16,8 +16,8 @@ It compares:
 | Historical StagePilot workflow inventory | 21 | Full workflow catalog that was consolidated into this repo |
 | New harness-native Discovery delivery workflow | 1 | `run-discovery-delivery`, added after consolidation to make Discovery-level multi-REQ orchestration first-class |
 | Existing harness-core skills | 3 | Topology, handoff, and harness umbrella skills |
-| Added operational tooling skills | 1 | `stagepilot-doctor-ops` |
-| `stagepilot-agent-harness/skills/` current total | 26 | 21 imported + 1 new Discovery-delivery workflow + 3 harness-core + 1 operational |
+| Added operational governance skills | 3 | `stagepilot-bootstrap-seed-ops`, `stagepilot-doctor-ops`, `stagepilot-skill-catalog-governance` |
+| `stagepilot-agent-harness/skills/` current total | 28 | 21 imported + 1 new Discovery-delivery workflow + 3 harness-core + 3 operational governance skills |
 
 Migration check result: **all 21 historical StagePilot skills are present in `stagepilot-agent-harness/skills/`**, plus one harness-native `run-discovery-delivery` workflow skill.
 
@@ -60,8 +60,9 @@ Migration check result: **all 21 historical StagePilot skills are present in `st
 - `stagepilot-role-topology`
 - `stagepilot-handoffs`
 
-### Operational tooling family
+### Operational governance family
 - `stagepilot-doctor-ops`
+- `stagepilot-skill-catalog-governance`
 
 ## Duplication / redundancy assessment
 
@@ -118,7 +119,6 @@ The current catalog still has meaningful gaps around operational tooling that al
 | Proposed skill | Why it is needed | Grounding |
 |---|---|---|
 | `stagepilot-bootstrap-seed-ops` | Bootstrap seed generation already exists as a script, but there is still no dedicated skill that explains when to seed, how to answer prompts, and how to validate the resulting baseline YAML plus generated docs. | `stage-pilot/tools/stagepilot-bootstrap-seed.py`; referenced from `bootstrap-baseline` and `stage-pilot/README.md` |
-| `stagepilot-skill-catalog-governance` | Now that this repo is the source-of-truth catalog, a maintenance skill for import/update/export/audit workflow would reduce drift and make future sync decisions explicit. | Needed by the repo-backed catalog model in this repository |
 
 ### Lower-priority additions
 
@@ -129,9 +129,9 @@ The current catalog still has meaningful gaps around operational tooling that al
 
 ## Recommended target model
 
-1. Keep the **26 current skills** in the harness repo.
+1. Keep the **28 current skills** in the harness repo.
 2. Treat the **21 imported StagePilot skills** plus harness-native **`run-discovery-delivery`** as the canonical SDLC workflow layer.
 3. Treat the **3 harness-core skills** as the canonical multi-agent operating layer.
-4. Treat **`stagepilot-doctor-ops`** as the canonical validation/triage layer.
-5. Add bootstrap-seed and catalog-governance skills next instead of deleting current workflow skills prematurely.
+4. Treat **`stagepilot-doctor-ops`** and **`stagepilot-skill-catalog-governance`** as the canonical operational governance layer.
+5. Add bootstrap-seed operations next instead of deleting current workflow skills prematurely.
 6. Keep export and verification in this repository so other systems can install from one place.

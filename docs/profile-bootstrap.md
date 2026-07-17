@@ -13,6 +13,20 @@ Bootstrap a reusable four-role topology:
 
 Use the shared worker profiles by default. Create project-specific worker variants only when credentials, compliance, tooling, or repository topology materially differ.
 
+## Fixture-first provisioning contract
+
+Before any approved runtime adapter is introduced, exercise bootstrap only against a disposable fixture home. `scripts/bootstrap_profiles.py` never selects the active Hermes home and rejects `~/.hermes`:
+
+```bash
+python3 scripts/bootstrap_profiles.py plan --fixture /abs/fixture.json --output /tmp/profile-plan.json
+python3 scripts/bootstrap_profiles.py apply --plan /tmp/profile-plan.json --target-home /tmp/fixture-hermes-home \
+  --target-profile fixture-dev-lead --target-profile fixture-dev-qc
+python3 scripts/bootstrap_profiles.py verify --plan /tmp/profile-plan.json --target-home /tmp/fixture-hermes-home
+python3 scripts/bootstrap_profiles.py report --plan /tmp/profile-plan.json --target-home /tmp/fixture-hermes-home
+```
+
+The `--target-profile` values must be the exact, duplicate-free profile-name set in the plan; this prevents partial application. The fixture lifecycle writes only profile SOUL/contract files, an exported skill tree, and managed bootstrap state. It does **not** call Hermes CLI or generate runtime `config.yaml`. The following live commands are reference material for a separately approved runtime-adapter step, not an automated default.
+
 ## Prerequisites
 
 Before creating profiles:
@@ -73,7 +87,9 @@ Then edit the copied files if the project needs explicit overlay rules.
 Export the in-repo skill catalog into the target Hermes runtime:
 
 ```bash
+python3 scripts/export_skills.py --dest ~/.hermes/skills --dry-run
 python3 scripts/export_skills.py --dest ~/.hermes/skills
+python3 scripts/verify_runtime_skill_sync.py --source . --dest ~/.hermes/skills --format json
 ```
 
 If you maintain a non-default profile home or a packaging step, export to that skill directory instead.
