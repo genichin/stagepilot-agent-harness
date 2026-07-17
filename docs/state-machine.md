@@ -69,6 +69,7 @@ The root delivery-state record is the canonical machine-readable status artifact
 - `capability_status`: `ready`, `degraded`, or `blocked` when launch capability discovery was run
 - `required_missing`, `optional_missing`: safe capability names from the launch preflight; never include credential values or raw authentication output
 - `fallbacks_selected`, `degraded_capabilities`: every explicit approved fallback and its affected capabilities when execution continues in degraded mode
+- `fallback_waivers`, `residual_risk_by_fallback`, `capability_evidence_path`: explicit fallback approval/policy, per-fallback residual risk, and the adjacent capability-evidence artifact path; values must not include credentials, remote URLs, or raw command output
 - `tooling_debts`: optional non-blocking tooling debt objects, including code and fallback validation plan
 - `launcher_status`, `launcher_status_file`: prelaunch failure classification and its adjacent machine-readable status artifact
 

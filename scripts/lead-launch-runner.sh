@@ -59,6 +59,8 @@ ALLOW_FAST_DEGRADED=0
 ACK_FAST_SHARED_WORKDIR_RISK=0
 DRY_RUN=0
 POSITIONAL=()
+FAST_SHARED_WORKDIR_LOCK_DIR=""
+FAST_SHARED_WORKDIR_LOCK_ROOT="${STAGEPILOT_FAST_SHARED_WORKDIR_LOCK_ROOT:-${TMPDIR:-/tmp}/stagepilot-fast-shared-workdir-locks}"
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -193,12 +195,13 @@ esac
 
 write_capability_state() {
   local capability_status="$1" fallback_selected="$2" degraded_capabilities="$3"
-  python3 - "$DELIVERY_STATE" "$capability_status" "$fallback_selected" "$degraded_capabilities" <<'PY'
+  local evidence_path="${DELIVERY_STATE}.capability-evidence.json"
+  python3 - "$DELIVERY_STATE" "$evidence_path" "$capability_status" "$fallback_selected" "$degraded_capabilities" <<'PY'
 import json
 import sys
 from datetime import datetime, timezone
 
-path, capability_status, fallback_selected, degraded_capabilities = sys.argv[1:]
+path, evidence_path, capability_status, fallback_selected, degraded_capabilities = sys.argv[1:]
 with open(path, encoding='utf-8') as handle:
     state = json.load(handle)
 if not isinstance(state, dict):
@@ -216,8 +219,26 @@ if fallback_selected:
         'current_workdir_without_worktree': 'fast delivery shares the lead checkout; exclusive clean local/reversible scope was explicitly acknowledged',
         'runner_validation_without_doctor': 'runner validation substitutes for unavailable optional stagepilot-doctor',
     }
-    if fallback_selected in residual_risk_by_fallback:
-        state['residual_risk'] = residual_risk_by_fallback[fallback_selected]
+    risk = residual_risk_by_fallback.get(fallback_selected)
+    if risk:
+        state['residual_risk'] = risk
+        risks = state.get('residual_risk_by_fallback', {})
+        if not isinstance(risks, dict):
+            risks = {}
+        risks[fallback_selected] = risk
+        state['residual_risk_by_fallback'] = risks
+        waivers = state.get('fallback_waivers', [])
+        if not isinstance(waivers, list):
+            waivers = []
+        waiver = {
+            'fallback': fallback_selected,
+            'approval': 'delivery-profile policy',
+            'residual_risk': risk,
+            'evidence_path': evidence_path,
+        }
+        waivers = [item for item in waivers if not isinstance(item, dict) or item.get('fallback') != fallback_selected]
+        waivers.append(waiver)
+        state['fallback_waivers'] = waivers
     if fallback_selected == 'current_workdir_without_worktree':
         state['fast_shared_workdir_risk_acknowledged'] = True
 if existing_fallbacks:
@@ -242,8 +263,19 @@ if 'stagepilot_doctor' in existing_degraded:
         debts.append(debt)
     state['tooling_debts'] = debts
 state['updated_at'] = datetime.now(timezone.utc).isoformat()
+state['capability_evidence_path'] = evidence_path
 with open(path, 'w', encoding='utf-8') as handle:
     json.dump(state, handle, indent=2, sort_keys=True)
+    handle.write('\n')
+evidence = {
+    'schema_version': 1,
+    'delivery_state': path,
+    'capability_status': state.get('capability_status'),
+    'fallbacks_selected': state.get('fallbacks_selected', []),
+    'fallback_waivers': state.get('fallback_waivers', []),
+}
+with open(evidence_path, 'w', encoding='utf-8') as handle:
+    json.dump(evidence, handle, indent=2, sort_keys=True)
     handle.write('\n')
 PY
 }
@@ -258,6 +290,7 @@ from datetime import datetime, timezone
 path, status_path, detail = sys.argv[1:]
 blocker_codes = {
     'hermes_not_found': 'hermes_profile_unavailable',
+    'hermes_profile_unavailable': 'hermes_profile_unavailable',
     'tmux_unavailable': 'tmux_unavailable',
     'git_not_found': 'git_worktree_prepare_failed',
     'prepare_worktree_helper_unavailable': 'git_worktree_prepare_failed',
@@ -265,6 +298,7 @@ blocker_codes = {
     'worktree_isolation_bypassed': 'worktree_isolation_bypassed',
     'fast_shared_workdir_risk_unacknowledged': 'fast_shared_workdir_risk_unacknowledged',
     'fast_shared_workdir_not_clean': 'fast_shared_workdir_not_clean',
+    'fast_shared_workdir_in_use': 'fast_shared_workdir_in_use',
     'doctor_unavailable': 'stagepilot_doctor_required_missing',
 }
 blocker_code = blocker_codes.get(detail, 'launcher_prerequisite_missing')
@@ -324,12 +358,54 @@ require_fast_shared_workdir_ack() {
   fi
 }
 
+release_fast_shared_workdir_lock() {
+  if [[ -n "$FAST_SHARED_WORKDIR_LOCK_DIR" ]]; then
+    rm -f "$FAST_SHARED_WORKDIR_LOCK_DIR/owner.pid" 2>/dev/null || true
+    rmdir "$FAST_SHARED_WORKDIR_LOCK_DIR" 2>/dev/null || true
+    FAST_SHARED_WORKDIR_LOCK_DIR=""
+  fi
+}
+
+acquire_fast_shared_workdir_lock() {
+  local shared_workdir="$1" lock_key owner_pid
+  lock_key="$(python3 - "$shared_workdir" <<'PY'
+import hashlib
+import sys
+print(hashlib.sha256(sys.argv[1].encode()).hexdigest())
+PY
+)"
+  FAST_SHARED_WORKDIR_LOCK_DIR="$FAST_SHARED_WORKDIR_LOCK_ROOT/$lock_key"
+  if ! mkdir -p "$FAST_SHARED_WORKDIR_LOCK_ROOT"; then
+    FAST_SHARED_WORKDIR_LOCK_DIR=""
+    fail_blocked fast_shared_workdir_in_use "could not establish the fast shared-workdir ownership lock"
+  fi
+  if ! mkdir "$FAST_SHARED_WORKDIR_LOCK_DIR"; then
+    owner_pid="$(cat "$FAST_SHARED_WORKDIR_LOCK_DIR/owner.pid" 2>/dev/null || true)"
+    if [[ "$owner_pid" =~ ^[0-9]+$ ]] && ! kill -0 "$owner_pid" 2>/dev/null; then
+      rm -f "$FAST_SHARED_WORKDIR_LOCK_DIR/owner.pid" 2>/dev/null || true
+      rmdir "$FAST_SHARED_WORKDIR_LOCK_DIR" 2>/dev/null || true
+    fi
+    if ! mkdir "$FAST_SHARED_WORKDIR_LOCK_DIR"; then
+      FAST_SHARED_WORKDIR_LOCK_DIR=""
+      fail_blocked fast_shared_workdir_in_use \
+        "current-workdir fallback refused because another fast delivery may own the shared checkout"
+    fi
+  fi
+  if ! printf '%s\n' "$$" > "$FAST_SHARED_WORKDIR_LOCK_DIR/owner.pid"; then
+    release_fast_shared_workdir_lock
+    fail_blocked fast_shared_workdir_in_use "could not persist the fast shared-workdir ownership lock"
+  fi
+  trap release_fast_shared_workdir_lock EXIT
+}
+
 use_fast_worktree_fallback() {
   local detail="$1" message="$2"
   if [[ "$DELIVERY_PROFILE" == fast && "$ALLOW_FAST_DEGRADED" -eq 1 ]]; then
     require_fast_shared_workdir_ack
+    acquire_fast_shared_workdir_lock "$DEFAULT_ROOT_WORKDIR"
     echo "warning: $message; continuing in current workdir only because fast degraded mode was explicitly approved" >&2
     WORKDIR="$DEFAULT_ROOT_WORKDIR"
+    LAUNCH_MODE="foreground"
     write_capability_state degraded current_workdir_without_worktree "$detail"
     return 0
   fi
@@ -338,6 +414,9 @@ use_fast_worktree_fallback() {
 
 if ! command -v hermes >/dev/null 2>&1; then
   fail_blocked hermes_not_found "required command not found: hermes"
+fi
+if ! hermes --profile "$PROFILE" profile show "$PROFILE" >/dev/null 2>&1; then
+  fail_blocked hermes_profile_unavailable "selected Hermes profile is unavailable"
 fi
 case "$DOCTOR_MODE" in
   required)
@@ -373,6 +452,8 @@ if [[ -n "$WORKDIR" ]]; then
       ;;
     fast)
       require_fast_shared_workdir_ack "$WORKDIR"
+      acquire_fast_shared_workdir_lock "$WORKDIR"
+      LAUNCH_MODE="foreground"
       write_capability_state degraded current_workdir_without_worktree worktree
       ;;
   esac
@@ -382,6 +463,8 @@ elif [[ "$SKIP_WORKTREE" -eq 1 ]]; then
   fi
   if [[ "$DELIVERY_PROFILE" == fast ]]; then
     require_fast_shared_workdir_ack "$DEFAULT_ROOT_WORKDIR"
+    acquire_fast_shared_workdir_lock "$DEFAULT_ROOT_WORKDIR"
+    LAUNCH_MODE="foreground"
     write_capability_state degraded current_workdir_without_worktree worktree
   fi
   WORKDIR="$DEFAULT_ROOT_WORKDIR"

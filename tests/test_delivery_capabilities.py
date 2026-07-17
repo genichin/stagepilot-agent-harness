@@ -133,6 +133,40 @@ class DeliveryCapabilityTests(unittest.TestCase):
         self.assertIn('gh', required_payload['required_missing'])
         self.assertIn('publication_origin', required_payload['required_missing'])
 
+    def test_selected_hermes_profile_is_validated_without_emitting_profile_output(self) -> None:
+        self._stub(
+            'hermes',
+            '#!/usr/bin/env bash\n'
+            '[[ "$*" == *"profile show missing-runner"* ]] || exit 9\n'
+            'printf "profile diagnostics must not enter JSON" >&2\n'
+            'exit 1\n',
+        )
+        result, payload = self.run_check('--hermes-profile', 'missing-runner')
+        self.assertEqual(result.returncode, 1, result.stderr)
+        self.assertIn('hermes_profile', payload['required_missing'])
+        self.assertNotIn('profile diagnostics', result.stdout)
+
+    def test_worktree_capability_is_profile_aware(self) -> None:
+        (self.bin_dir / 'git').unlink()
+        self._stub(
+            'git',
+            '#!/usr/bin/env bash\n'
+            'if [[ "$*" == *"rev-parse --is-inside-work-tree"* ]]; then exit 0; fi\n'
+            'if [[ "$*" == *"worktree list --porcelain"* ]]; then exit 1; fi\n'
+            'exit 0\n',
+        )
+        fast, fast_payload = self.run_check(
+            '--delivery-profile', 'fast', '--allow-fast-degraded',
+        )
+        self.assertEqual(fast.returncode, 0, fast.stderr)
+        self.assertIn('git_worktree', fast_payload['optional_missing'])
+        self.assertIn('current_workdir_without_worktree', fast_payload['available_fallbacks'])
+
+        self._stub('tmux', '#!/usr/bin/env bash\nexit 0\n')
+        guarded, guarded_payload = self.run_check('--delivery-profile', 'guarded')
+        self.assertEqual(guarded.returncode, 1, guarded.stderr)
+        self.assertIn('git_worktree', guarded_payload['required_missing'])
+
 
 if __name__ == '__main__':
     unittest.main(verbosity=2)

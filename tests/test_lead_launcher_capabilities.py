@@ -19,7 +19,7 @@ class LeadLauncherCapabilityTests(unittest.TestCase):
         self.tmp = Path(self.tempdir.name)
         self.bin_dir = self.tmp / 'bin'
         self.bin_dir.mkdir()
-        for command in ('bash', 'python3', 'mkdir', 'mktemp', 'basename', 'dirname', 'tr', 'date', 'chmod', 'cat'):
+        for command in ('bash', 'python3', 'mkdir', 'rmdir', 'rm', 'mktemp', 'basename', 'dirname', 'tr', 'date', 'chmod', 'cat'):
             source = shutil.which(command)
             if source is None:
                 self.fail(f'required test command not found: {command}')
@@ -79,6 +79,10 @@ class LeadLauncherCapabilityTests(unittest.TestCase):
         self.assertIn('worktree', state['degraded_capabilities'])
         self.assertTrue(state['fast_shared_workdir_risk_acknowledged'])
         self.assertIn('shares the lead checkout', state['residual_risk'])
+        waiver = next(item for item in state['fallback_waivers'] if item['fallback'] == 'current_workdir_without_worktree')
+        self.assertEqual(waiver['evidence_path'], f"{self.tmp / 'fast.json'}.capability-evidence.json")
+        evidence = json.loads(Path(waiver['evidence_path']).read_text(encoding='utf-8'))
+        self.assertIn('current_workdir_without_worktree', evidence['fallbacks_selected'])
 
     def test_standard_missing_tmux_becomes_structured_blocker(self) -> None:
         result, state = self.run_launcher('standard')
@@ -101,6 +105,51 @@ class LeadLauncherCapabilityTests(unittest.TestCase):
         self.assertEqual(state['blocker_detail'], 'hermes_not_found')
         self.assertEqual(state['blocker_code'], 'hermes_profile_unavailable')
         self.assertEqual(state['launcher_status']['classification'], 'hermes_profile_unavailable')
+
+    def test_unavailable_selected_hermes_profile_is_a_structured_blocker(self) -> None:
+        (self.bin_dir / 'hermes').write_text('#!/usr/bin/env bash\nexit 1\n', encoding='utf-8')
+        result, state = self.run_launcher('standard')
+        self.assertEqual(result.returncode, 1)
+        self.assertEqual(state['blocker_code'], 'hermes_profile_unavailable')
+        self.assertEqual(state['blocker_detail'], 'hermes_profile_unavailable')
+
+    def test_fast_shared_workdir_lock_refuses_concurrent_owner(self) -> None:
+        import hashlib
+
+        lock_root = self.tmp / 'fast-locks'
+        lock_key = hashlib.sha256(str(self.tmp).encode()).hexdigest()
+        (lock_root / lock_key).mkdir(parents=True)
+        result, state = self.run_launcher(
+            'fast', '--allow-fast-degraded', '--ack-fast-shared-workdir-risk', '--workdir', str(self.tmp),
+            env_updates={'STAGEPILOT_FAST_SHARED_WORKDIR_LOCK_ROOT': str(lock_root)},
+        )
+        self.assertEqual(result.returncode, 1)
+        self.assertEqual(state['blocker_code'], 'fast_shared_workdir_in_use')
+        self.assertEqual(state['launcher_status']['classification'], 'fast_shared_workdir_in_use')
+
+    def test_fast_shared_workdir_lock_reclaims_stale_dead_owner(self) -> None:
+        import hashlib
+
+        lock_root = self.tmp / 'fast-locks'
+        lock_key = hashlib.sha256(str(self.tmp).encode()).hexdigest()
+        stale_lock = lock_root / lock_key
+        stale_lock.mkdir(parents=True)
+        (stale_lock / 'owner.pid').write_text('999999\n', encoding='utf-8')
+        result, _ = self.run_launcher(
+            'fast', '--allow-fast-degraded', '--ack-fast-shared-workdir-risk', '--workdir', str(self.tmp),
+            env_updates={'STAGEPILOT_FAST_SHARED_WORKDIR_LOCK_ROOT': str(lock_root)},
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertFalse(list(lock_root.iterdir()))
+
+    def test_fast_shared_workdir_lock_is_released_after_dry_run(self) -> None:
+        lock_root = self.tmp / 'fast-locks'
+        result, _ = self.run_launcher(
+            'fast', '--allow-fast-degraded', '--ack-fast-shared-workdir-risk', '--workdir', str(self.tmp),
+            env_updates={'STAGEPILOT_FAST_SHARED_WORKDIR_LOCK_ROOT': str(lock_root)},
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertFalse(list(lock_root.iterdir()))
 
     def test_missing_python_explains_that_json_blocker_persistence_is_impossible(self) -> None:
         (self.bin_dir / 'python3').unlink()

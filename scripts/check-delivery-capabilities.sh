@@ -10,6 +10,8 @@ Options:
   --doctor-mode required|optional|not-adopted
                                            Doctor adoption mode (default: delivery state or not-adopted)
   --delivery-state PATH                    Read doctor adoption mode from the authoritative root state
+  --hermes-profile NAME                    Hermes profile required by the launcher (default: delivery-runner)
+  --repo-root PATH                         Target repository for worktree capability checks (default: cwd)
   --worktree-mode auto|required|skip       Worktree intent (default: auto)
   --launch-mode detached|foreground        Runner launch mode (default: detached)
   --publication-mode auto|required|not-required
@@ -24,6 +26,8 @@ DELIVERY_PROFILE="standard"
 DOCTOR_MODE="not-adopted"
 DOCTOR_MODE_EXPLICIT=0
 DELIVERY_STATE=""
+HERMES_PROFILE="delivery-runner"
+REPO_ROOT="$(pwd)"
 WORKTREE_MODE="auto"
 LAUNCH_MODE="detached"
 PUBLICATION_MODE="auto"
@@ -39,6 +43,8 @@ while [[ $# -gt 0 ]]; do
     --delivery-profile) DELIVERY_PROFILE="${2:-}"; shift 2 ;;
     --doctor-mode) DOCTOR_MODE="${2:-}"; DOCTOR_MODE_EXPLICIT=1; shift 2 ;;
     --delivery-state) DELIVERY_STATE="${2:-}"; shift 2 ;;
+    --hermes-profile) HERMES_PROFILE="${2:-}"; shift 2 ;;
+    --repo-root) REPO_ROOT="${2:-}"; shift 2 ;;
     --worktree-mode) WORKTREE_MODE="${2:-}"; shift 2 ;;
     --launch-mode) LAUNCH_MODE="${2:-}"; shift 2 ;;
     --publication-mode) PUBLICATION_MODE="${2:-}"; shift 2 ;;
@@ -77,6 +83,8 @@ case "$DOCTOR_MODE" in required|optional|not-adopted) ;; *) echo "error: invalid
 case "$WORKTREE_MODE" in auto|required|skip) ;; *) echo "error: invalid worktree mode: $WORKTREE_MODE" >&2; exit 2 ;; esac
 case "$LAUNCH_MODE" in detached|foreground) ;; *) echo "error: invalid launch mode: $LAUNCH_MODE" >&2; exit 2 ;; esac
 case "$PUBLICATION_MODE" in auto|required|not-required) ;; *) echo "error: invalid publication mode: $PUBLICATION_MODE" >&2; exit 2 ;; esac
+[[ -n "$HERMES_PROFILE" ]] || { echo "error: --hermes-profile requires a value" >&2; exit 2; }
+[[ -d "$REPO_ROOT" ]] || { echo "error: repo root not found: $REPO_ROOT" >&2; exit 2; }
 
 required_missing=()
 optional_missing=()
@@ -100,6 +108,9 @@ optional_command() {
 
 require_command hermes hermes
 require_command python3 python3
+if capability_command hermes && ! hermes --profile "$HERMES_PROFILE" profile show "$HERMES_PROFILE" >/dev/null 2>&1; then
+  required_missing+=(hermes_profile)
+fi
 
 if [[ "$LAUNCH_MODE" == detached ]]; then
   if [[ "$DELIVERY_PROFILE" == fast && "$ALLOW_FAST_DEGRADED" -eq 1 ]]; then
@@ -125,11 +136,20 @@ if [[ "$WORKTREE_MODE" != skip ]]; then
   else
     optional_command git git current_workdir_without_worktree
   fi
-  if capability_command git && ! git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+  if capability_command git && ! git -C "$REPO_ROOT" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
     if [[ "$worktree_required" -eq 1 ]]; then
       required_missing+=(git_repository)
     else
       optional_missing+=(git_repository)
+      available_fallbacks+=(current_workdir_without_worktree)
+    fi
+  fi
+  if capability_command git && git -C "$REPO_ROOT" rev-parse --is-inside-work-tree >/dev/null 2>&1 \
+      && ! git -C "$REPO_ROOT" worktree list --porcelain >/dev/null 2>&1; then
+    if [[ "$worktree_required" -eq 1 ]]; then
+      required_missing+=(git_worktree)
+    else
+      optional_missing+=(git_worktree)
       available_fallbacks+=(current_workdir_without_worktree)
     fi
   fi
