@@ -27,6 +27,8 @@ Default post-REQ behavior:
 - By default, this handoff is a kickoff artifact plus a small delivery-state record; optional Telegram notification may mirror it for visibility.
 - Artifact creation alone does not start runner work. The lead must explicitly launch `delivery-runner`; the default harness launch path is `scripts/lead-launch-runner.sh`, which runs `hermes --profile delivery-runner` in detached background `tmux`.
 - The default lead launch path also prepares a dedicated git worktree/branch for that kickoff so delivery PR work is isolated from lead/human Discovery edits in the main checkout.
+- A `fast` local-only exception requires both `--allow-fast-degraded` and `--ack-fast-shared-workdir-risk`; the latter is an explicit lead assertion that the checkout is exclusive and the scope is reversible. `guarded` never permits `--skip-worktree`.
+- The root delivery state is the authoritative doctor adoption source. A missing required doctor blocks; an optional missing doctor becomes recorded tooling debt with runner validation; not-adopted remains non-blocking.
 - The runner claims that kickoff only through the documented artifact/state claim semantics.
 - Default concurrency is one root kickoff item in active execution per runner globally unless a project overlay documents otherwise.
 - Downstream impl/QC handoffs stay transport-agnostic and must not use kanban.

@@ -37,6 +37,8 @@ To avoid PR-branch contamination from live Discovery edits:
 
 - The lead/human should keep Discovery and REQ drafting in the primary checkout (normally `main`).
 - The default `scripts/lead-launch-runner.sh` path prepares a dedicated delivery branch + git worktree for each kickoff and launches `delivery-runner` there.
+- A fast current-workdir exception is permitted only for local/reversible scope with both `--allow-fast-degraded` and `--ack-fast-shared-workdir-risk`; do not provide that acknowledgement while another delivery or human change may use the checkout. Guarded delivery cannot bypass worktree isolation.
+- The root delivery state declares doctor adoption and records capability blockers or optional-doctor tooling debt; do not rely on an implicit host-global doctor configuration.
 - Live Discovery/REQ edits made after kickoff should remain in the lead checkout unless the lead explicitly re-hands off or syncs them into delivery scope.
 - The lead should not treat the runner PR branch as the workspace for ongoing Discovery drafting.
 

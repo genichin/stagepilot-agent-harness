@@ -27,6 +27,9 @@ Options:
   --worktree-path PATH     Explicit path for auto-prepared worktree
   --skip-worktree          Do not auto-prepare isolated runner worktree
   --allow-fast-degraded    Permit documented fast-only foreground/current-workdir fallback
+  --ack-fast-shared-workdir-risk
+                           Explicitly accept the exclusive-checkout requirement for a fast
+                           current-workdir fallback
   --dry-run                Print derived launch values without starting tmux
   -h, --help               Show this help
 EOF
@@ -53,6 +56,7 @@ BRANCH_NAME=""
 WORKTREE_PATH=""
 SKIP_WORKTREE=0
 ALLOW_FAST_DEGRADED=0
+ACK_FAST_SHARED_WORKDIR_RISK=0
 DRY_RUN=0
 POSITIONAL=()
 
@@ -99,6 +103,10 @@ while [[ $# -gt 0 ]]; do
       ALLOW_FAST_DEGRADED=1
       shift
       ;;
+    --ack-fast-shared-workdir-risk)
+      ACK_FAST_SHARED_WORKDIR_RISK=1
+      shift
+      ;;
     --dry-run)
       DRY_RUN=1
       shift
@@ -134,8 +142,14 @@ PREPARE_WORKTREE_SCRIPT="$SCRIPT_DIR/prepare-runner-worktree.sh"
 DEFAULT_ROOT_WORKDIR="$REPO_ROOT"
 LOG_DIR="${LOG_DIR:-$REPO_ROOT/.stagepilot/runner-logs}"
 
+if ! command -v python3 >/dev/null 2>&1; then
+  echo "error: required command not found: python3; cannot persist a JSON delivery blocker state" >&2
+  exit 1
+fi
+
 KICKOFF_ARTIFACT="$(abspath "${POSITIONAL[0]}")"
 DELIVERY_STATE="$(abspath "${POSITIONAL[1]}")"
+PRELAUNCH_STATUS_FILE="${DELIVERY_STATE}.launcher-status.json"
 LOG_DIR="$(abspath "$LOG_DIR")"
 
 if [[ ! -f "$KICKOFF_ARTIFACT" ]]; then
@@ -197,6 +211,15 @@ if fallback_selected:
     state['fallback_selected'] = fallback_selected
     if fallback_selected not in existing_fallbacks:
         existing_fallbacks.append(fallback_selected)
+    residual_risk_by_fallback = {
+        'foreground_runner_without_tmux': 'fast delivery is not detached or tmux-supervised',
+        'current_workdir_without_worktree': 'fast delivery shares the lead checkout; exclusive clean local/reversible scope was explicitly acknowledged',
+        'runner_validation_without_doctor': 'runner validation substitutes for unavailable optional stagepilot-doctor',
+    }
+    if fallback_selected in residual_risk_by_fallback:
+        state['residual_risk'] = residual_risk_by_fallback[fallback_selected]
+    if fallback_selected == 'current_workdir_without_worktree':
+        state['fast_shared_workdir_risk_acknowledged'] = True
 if existing_fallbacks:
     state['fallbacks_selected'] = existing_fallbacks
 existing_degraded = state.get('degraded_capabilities', [])
@@ -207,6 +230,17 @@ for capability in filter(None, degraded_capabilities.split(',')):
         existing_degraded.append(capability)
 if existing_degraded:
     state['degraded_capabilities'] = existing_degraded
+if 'stagepilot_doctor' in existing_degraded:
+    debts = state.get('tooling_debts', [])
+    if not isinstance(debts, list):
+        debts = []
+    debt = {
+        'code': 'stagepilot_doctor_optional_missing',
+        'fallback_validation': 'runner_validation_without_doctor',
+    }
+    if debt not in debts:
+        debts.append(debt)
+    state['tooling_debts'] = debts
 state['updated_at'] = datetime.now(timezone.utc).isoformat()
 with open(path, 'w', encoding='utf-8') as handle:
     json.dump(state, handle, indent=2, sort_keys=True)
@@ -216,17 +250,32 @@ PY
 
 write_blocked_state() {
   local blocker_detail="$1"
-  python3 - "$DELIVERY_STATE" "$blocker_detail" <<'PY'
+  python3 - "$DELIVERY_STATE" "$PRELAUNCH_STATUS_FILE" "$blocker_detail" <<'PY'
 import json
 import sys
 from datetime import datetime, timezone
 
-path, detail = sys.argv[1:]
-blocker_code = (
-    'stagepilot_doctor_required_missing'
-    if detail == 'doctor_unavailable'
-    else 'launcher_prerequisite_missing'
-)
+path, status_path, detail = sys.argv[1:]
+blocker_codes = {
+    'hermes_not_found': 'hermes_profile_unavailable',
+    'tmux_unavailable': 'tmux_unavailable',
+    'git_not_found': 'git_worktree_prepare_failed',
+    'prepare_worktree_helper_unavailable': 'git_worktree_prepare_failed',
+    'git_worktree_prepare_failed': 'git_worktree_prepare_failed',
+    'worktree_isolation_bypassed': 'worktree_isolation_bypassed',
+    'fast_shared_workdir_risk_unacknowledged': 'fast_shared_workdir_risk_unacknowledged',
+    'fast_shared_workdir_not_clean': 'fast_shared_workdir_not_clean',
+    'doctor_unavailable': 'stagepilot_doctor_required_missing',
+}
+blocker_code = blocker_codes.get(detail, 'launcher_prerequisite_missing')
+timestamp = datetime.now(timezone.utc).isoformat()
+launcher_status = {
+    'classification': blocker_code,
+    'detail': detail,
+    'phase': 'prelaunch',
+    'status': 'blocked',
+    'updated_at': timestamp,
+}
 with open(path, encoding='utf-8') as handle:
     state = json.load(handle)
 if not isinstance(state, dict):
@@ -239,10 +288,15 @@ state.update({
     'blocker_code': blocker_code,
     'blocker_detail': detail,
     'capability_status': 'blocked',
-    'updated_at': datetime.now(timezone.utc).isoformat(),
+    'launcher_status': launcher_status,
+    'launcher_status_file': status_path,
+    'updated_at': timestamp,
 })
 with open(path, 'w', encoding='utf-8') as handle:
     json.dump(state, handle, indent=2, sort_keys=True)
+    handle.write('\n')
+with open(status_path, 'w', encoding='utf-8') as handle:
+    json.dump(launcher_status, handle, indent=2, sort_keys=True)
     handle.write('\n')
 PY
 }
@@ -256,9 +310,24 @@ fail_blocked() {
   exit 1
 }
 
+require_fast_shared_workdir_ack() {
+  local shared_workdir="${1:-$DEFAULT_ROOT_WORKDIR}"
+  if [[ "$DELIVERY_PROFILE" != fast || "$ALLOW_FAST_DEGRADED" -ne 1 || "$ACK_FAST_SHARED_WORKDIR_RISK" -ne 1 ]]; then
+    fail_blocked fast_shared_workdir_risk_unacknowledged \
+      "current-workdir fallback requires fast --allow-fast-degraded and --ack-fast-shared-workdir-risk"
+  fi
+  if command -v git >/dev/null 2>&1 && git -C "$shared_workdir" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+    if [[ -n "$(git -C "$shared_workdir" status --porcelain)" ]]; then
+      fail_blocked fast_shared_workdir_not_clean \
+        "current-workdir fallback refused because the checkout has uncommitted changes"
+    fi
+  fi
+}
+
 use_fast_worktree_fallback() {
   local detail="$1" message="$2"
   if [[ "$DELIVERY_PROFILE" == fast && "$ALLOW_FAST_DEGRADED" -eq 1 ]]; then
+    require_fast_shared_workdir_ack
     echo "warning: $message; continuing in current workdir only because fast degraded mode was explicitly approved" >&2
     WORKDIR="$DEFAULT_ROOT_WORKDIR"
     write_capability_state degraded current_workdir_without_worktree "$detail"
@@ -292,13 +361,29 @@ if ! command -v tmux >/dev/null 2>&1; then
 else
   LAUNCH_MODE="detached"
 fi
-mkdir -p "$LOG_DIR"
 
 PREPARED_WORKTREE_PATH=""
 PREPARED_BRANCH_NAME=""
 if [[ -n "$WORKDIR" ]]; then
   WORKDIR="$(abspath "$WORKDIR")"
+  case "$DELIVERY_PROFILE" in
+    guarded|standard)
+      fail_blocked worktree_isolation_bypassed \
+        "$DELIVERY_PROFILE delivery cannot bypass isolated worktree preparation with --workdir"
+      ;;
+    fast)
+      require_fast_shared_workdir_ack "$WORKDIR"
+      write_capability_state degraded current_workdir_without_worktree worktree
+      ;;
+  esac
 elif [[ "$SKIP_WORKTREE" -eq 1 ]]; then
+  if [[ "$DELIVERY_PROFILE" == guarded || "$DELIVERY_PROFILE" == standard ]]; then
+    fail_blocked worktree_isolation_bypassed "$DELIVERY_PROFILE delivery cannot skip isolated worktree preparation"
+  fi
+  if [[ "$DELIVERY_PROFILE" == fast ]]; then
+    require_fast_shared_workdir_ack "$DEFAULT_ROOT_WORKDIR"
+    write_capability_state degraded current_workdir_without_worktree worktree
+  fi
   WORKDIR="$DEFAULT_ROOT_WORKDIR"
 else
   if ! command -v git >/dev/null 2>&1; then
@@ -346,22 +431,29 @@ if [[ -z "$SESSION_NAME" ]]; then
   SESSION_NAME="runner-${kickoff_base}-${timestamp}"
 fi
 
+if ! mkdir -p "$LOG_DIR"; then
+  fail_blocked launcher_runtime_prepare_failed "failed to create launcher log directory"
+fi
 LOG_FILE="$LOG_DIR/${SESSION_NAME}.log"
 EXIT_FILE="$LOG_DIR/${SESSION_NAME}.exit"
 STATUS_FILE="$LOG_DIR/${SESSION_NAME}.status"
-TMP_DIR="$(mktemp -d "${TMPDIR:-/tmp}/stagepilot-runner-${SESSION_NAME}.XXXXXX")"
+if ! TMP_DIR="$(mktemp -d "${TMPDIR:-/tmp}/stagepilot-runner-${SESSION_NAME}.XXXXXX")"; then
+  fail_blocked launcher_runtime_prepare_failed "failed to create launcher temporary directory"
+fi
 PROMPT_FILE="$TMP_DIR/prompt.txt"
 RUNNER_SCRIPT="$TMP_DIR/run-runner.sh"
 IMPL_LAUNCHER="$SCRIPT_DIR/runner-launch-impl.sh"
 QC_LAUNCHER="$SCRIPT_DIR/runner-launch-qc.sh"
 PUBLICATION_PREFLIGHT="$SCRIPT_DIR/check-publication-auth.sh"
-if [[ "$DELIVERY_PROFILE" == guarded ]]; then
+if [[ "$DELIVERY_PROFILE" == "guarded" ]]; then
   PREFLIGHT_INSTRUCTION="- For PR-bound guarded delivery, run publication auth preflight before substantial impl/QC effort and record the outcome in the delivery trail:
   - publication_preflight: $PUBLICATION_PREFLIGHT --json
   - minimum checks: git remote get-url origin, gh auth status, git ls-remote origin, git push --dry-run origin HEAD:refs/heads/<current-branch>
   - if preflight fails, stop early, reflect a blocked/escalation trail entry, and classify it with reason code publication_auth_missing (or a more specific suffix from the helper output)."
+elif [[ "$DELIVERY_PROFILE" == "fast" ]]; then
+  PREFLIGHT_INSTRUCTION="- This is a local-only fast delivery. Do not create a PR, push, release, or perform other publication actions. If publication or release-sensitive work enters scope, stop and escalate to standard or guarded."
 else
-  PREFLIGHT_INSTRUCTION="- Do not run publication preflight by default for this $DELIVERY_PROFILE delivery. Escalate to guarded if PR publication or release-sensitive risk becomes part of scope."
+  PREFLIGHT_INSTRUCTION="- Do not run publication preflight unless publication becomes part of the approved standard-delivery scope. Escalate to guarded for PR publication or release-sensitive risk."
 fi
 
 cat > "$PROMPT_FILE" <<EOF

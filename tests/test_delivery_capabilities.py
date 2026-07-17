@@ -23,6 +23,7 @@ class DeliveryCapabilityTests(unittest.TestCase):
         self.bin_dir.mkdir()
         subprocess.run(['git', 'init', '-q'], cwd=self.repo, check=True)
         self._link('python3')
+        self._link('bash')
         self._link('git')
         self._stub('hermes', '#!/usr/bin/env bash\nexit 0\n')
 
@@ -90,6 +91,33 @@ class DeliveryCapabilityTests(unittest.TestCase):
         self.assertEqual(degraded_payload['status'], 'degraded')
         self.assertIn('stagepilot_doctor', degraded_payload['optional_missing'])
         self.assertIn('runner_validation_without_doctor', degraded_payload['available_fallbacks'])
+
+    def test_delivery_state_is_authoritative_doctor_mode_source_when_not_overridden(self) -> None:
+        state = self.repo / 'delivery-state.json'
+        state.write_text(json.dumps({'doctor_adoption_mode': 'required'}), encoding='utf-8')
+        result, payload = self.run_check(
+            '--delivery-profile', 'fast', '--allow-fast-degraded',
+            '--delivery-state', str(state),
+        )
+        self.assertEqual(result.returncode, 1, result.stderr)
+        self.assertEqual(payload['doctor_mode'], 'required')
+        self.assertEqual(payload['doctor_mode_source'], 'delivery_state')
+        self.assertIn('stagepilot_doctor', payload['required_missing'])
+
+    def test_missing_python_fails_before_contract_emission_with_actionable_error(self) -> None:
+        (self.bin_dir / 'python3').unlink()
+        env = os.environ.copy()
+        env['PATH'] = str(self.bin_dir)
+        result = subprocess.run(
+            [str(SCRIPT), '--json'],
+            cwd=self.repo,
+            env=env,
+            text=True,
+            capture_output=True,
+            check=False,
+        )
+        self.assertEqual(result.returncode, 2)
+        self.assertIn('python3 is required to emit the capability JSON contract', result.stderr)
 
     def test_publication_is_checked_only_when_requested(self) -> None:
         default, default_payload = self.run_check(

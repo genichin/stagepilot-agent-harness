@@ -8,7 +8,8 @@ Usage: check-delivery-capabilities.sh [options]
 Options:
   --delivery-profile fast|standard|guarded  Delivery control profile (default: standard)
   --doctor-mode required|optional|not-adopted
-                                           Doctor adoption mode (default: not-adopted)
+                                           Doctor adoption mode (default: delivery state or not-adopted)
+  --delivery-state PATH                    Read doctor adoption mode from the authoritative root state
   --worktree-mode auto|required|skip       Worktree intent (default: auto)
   --launch-mode detached|foreground        Runner launch mode (default: detached)
   --publication-mode auto|required|not-required
@@ -21,6 +22,8 @@ EOF
 
 DELIVERY_PROFILE="standard"
 DOCTOR_MODE="not-adopted"
+DOCTOR_MODE_EXPLICIT=0
+DELIVERY_STATE=""
 WORKTREE_MODE="auto"
 LAUNCH_MODE="detached"
 PUBLICATION_MODE="auto"
@@ -34,7 +37,8 @@ capability_command() {
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --delivery-profile) DELIVERY_PROFILE="${2:-}"; shift 2 ;;
-    --doctor-mode) DOCTOR_MODE="${2:-}"; shift 2 ;;
+    --doctor-mode) DOCTOR_MODE="${2:-}"; DOCTOR_MODE_EXPLICIT=1; shift 2 ;;
+    --delivery-state) DELIVERY_STATE="${2:-}"; shift 2 ;;
     --worktree-mode) WORKTREE_MODE="${2:-}"; shift 2 ;;
     --launch-mode) LAUNCH_MODE="${2:-}"; shift 2 ;;
     --publication-mode) PUBLICATION_MODE="${2:-}"; shift 2 ;;
@@ -45,16 +49,34 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
+if ! command -v python3 >/dev/null 2>&1; then
+  echo "error: python3 is required to emit the capability JSON contract" >&2
+  exit 2
+fi
+
+if [[ "$DOCTOR_MODE_EXPLICIT" -eq 0 && -n "$DELIVERY_STATE" ]]; then
+  if [[ ! -f "$DELIVERY_STATE" ]]; then
+    echo "error: delivery state not found: $DELIVERY_STATE" >&2
+    exit 2
+  fi
+  DOCTOR_MODE="$(python3 - "$DELIVERY_STATE" <<'PY'
+import json
+import sys
+with open(sys.argv[1], encoding='utf-8') as handle:
+    state = json.load(handle)
+print(state.get('doctor_adoption_mode') or 'not-adopted')
+PY
+)"
+  DOCTOR_MODE_SOURCE="delivery_state"
+else
+  DOCTOR_MODE_SOURCE="explicit_or_default"
+fi
+
 case "$DELIVERY_PROFILE" in fast|standard|guarded) ;; *) echo "error: invalid delivery profile: $DELIVERY_PROFILE" >&2; exit 2 ;; esac
 case "$DOCTOR_MODE" in required|optional|not-adopted) ;; *) echo "error: invalid doctor mode: $DOCTOR_MODE" >&2; exit 2 ;; esac
 case "$WORKTREE_MODE" in auto|required|skip) ;; *) echo "error: invalid worktree mode: $WORKTREE_MODE" >&2; exit 2 ;; esac
 case "$LAUNCH_MODE" in detached|foreground) ;; *) echo "error: invalid launch mode: $LAUNCH_MODE" >&2; exit 2 ;; esac
 case "$PUBLICATION_MODE" in auto|required|not-required) ;; *) echo "error: invalid publication mode: $PUBLICATION_MODE" >&2; exit 2 ;; esac
-
-if ! command -v python3 >/dev/null 2>&1; then
-  printf '%s\n' '{"status":"blocked","delivery_profile":"'"$DELIVERY_PROFILE"'","required_missing":["python3"],"optional_missing":[],"available_fallbacks":[],"recommended_next_action":"restore_required_capabilities"}'
-  exit 2
-fi
 
 required_missing=()
 optional_missing=()
@@ -142,7 +164,7 @@ elif [[ ${#optional_missing[@]} -gt 0 ]]; then
   recommended_next_action="select_explicit_fallback_or_restore_capability"
 fi
 
-python3 - "$status" "$DELIVERY_PROFILE" "$DOCTOR_MODE" "$WORKTREE_MODE" "$LAUNCH_MODE" "$PUBLICATION_MODE" "$recommended_next_action" "${required_missing[*]:-}" "${optional_missing[*]:-}" "${available_fallbacks[*]:-}" "${notes[*]:-}" <<'PY'
+python3 - "$status" "$DELIVERY_PROFILE" "$DOCTOR_MODE" "$DOCTOR_MODE_SOURCE" "$WORKTREE_MODE" "$LAUNCH_MODE" "$PUBLICATION_MODE" "$recommended_next_action" "${required_missing[*]:-}" "${optional_missing[*]:-}" "${available_fallbacks[*]:-}" "${notes[*]:-}" <<'PY'
 import json
 import sys
 
@@ -150,6 +172,7 @@ import sys
     status,
     profile,
     doctor_mode,
+    doctor_mode_source,
     worktree_mode,
     launch_mode,
     publication_mode,
@@ -165,6 +188,7 @@ payload = {
     "status": status,
     "delivery_profile": profile,
     "doctor_mode": doctor_mode,
+    "doctor_mode_source": doctor_mode_source,
     "worktree_mode": worktree_mode,
     "launch_mode": launch_mode,
     "publication_mode": publication_mode,
