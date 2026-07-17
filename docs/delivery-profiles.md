@@ -32,4 +32,20 @@ A completion summary is secondary. The canonical success signal remains root del
 - `runner-launch-qc.sh --delivery-profile fast` fails deliberately: fast has runner-owned targeted validation rather than a QC handoff.
 - `guarded` forces supervision in both child launchers; guarded implementation also requires a valid implementation-context.
 
+## Capability and degraded-mode policy
+
+Run `scripts/check-delivery-capabilities.sh --json` before a launcher path when the environment is uncertain. The helper classifies capability results as `ready`, `degraded`, or `blocked`; it does not expose credential values or raw auth output.
+
+| Capability | `fast` | `standard` | `guarded` |
+| --- | --- | --- | --- |
+| Hermes profile and Python | required | required | required |
+| `tmux` | required for default detached launch; explicit foreground fallback may be approved | required for detached launch | required |
+| isolated worktree | default; explicit approved fallback only for local/reversible work | required when selected by the delivery plan | required |
+| `gh` auth and publication remote | not a default requirement | only when publication is in scope | required for PR-bound publication |
+| doctor | use declared adoption mode | use declared adoption mode | use declared adoption mode |
+
+A degraded path is never implicit. Only `fast` may use the launcher’s `--allow-fast-degraded` option, and only for a small local/reversible scope. The launcher records `capability_status=degraded`, `fallback_selected`, `degraded_capabilities`, and residual risk in root state. `standard` requires an explicit lead decision for any equivalent exception; `guarded` capability failures are blockers.
+
+Doctor must be declared by a project overlay or root state as `required`, `optional`, or `not-adopted`. A missing required doctor blocks; an optional missing doctor is recorded as tooling debt with an alternative validation plan; a not-adopted doctor is not a failure by itself.
+
 This repository is the source-of-truth harness only. Updating it does not modify an already-installed Hermes profile or a running session.

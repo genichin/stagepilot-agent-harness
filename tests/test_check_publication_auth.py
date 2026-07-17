@@ -50,13 +50,22 @@ class PublicationPreflightTests(unittest.TestCase):
     def tearDown(self) -> None:
         self.tempdir.cleanup()
 
-    def run_preflight(self, *, gh_exit_code: int = 0, gh_status_text: str = 'logged in', branch: str | None = None) -> subprocess.CompletedProcess[str]:
+    def run_preflight(
+        self,
+        *,
+        gh_exit_code: int = 0,
+        gh_status_text: str = 'logged in',
+        branch: str | None = None,
+        gh_home: str | None = None,
+    ) -> subprocess.CompletedProcess[str]:
         status_file = self.capture_dir / 'gh-status.txt'
         status_file.write_text(gh_status_text, encoding='utf-8')
         env = os.environ.copy()
         env['PATH'] = f"{self.bin_dir}:{env['PATH']}"
         env['GH_EXIT_CODE'] = str(gh_exit_code)
         env['GH_STATUS_FILE'] = str(status_file)
+        if gh_home is not None:
+            env['STAGEPILOT_GH_HOME'] = gh_home
         args = [str(SCRIPT), '--json']
         if branch is not None:
             args.extend(['--branch', branch])
@@ -71,6 +80,15 @@ class PublicationPreflightTests(unittest.TestCase):
         self.assertTrue(payload['checks']['gh_auth_status']['ok'])
         self.assertTrue(payload['checks']['git_ls_remote_origin']['ok'])
         self.assertTrue(payload['checks']['git_push_dry_run']['ok'])
+        self.assertEqual(payload['auth_source'], 'HOME')
+        self.assertNotIn('output', payload['checks']['gh_auth_status'])
+
+    def test_preflight_uses_only_explicit_gh_home_override(self) -> None:
+        result = self.run_preflight(gh_home='/explicit/managed-gh-home')
+        self.assertEqual(result.returncode, 0, msg=result.stdout + '\n' + result.stderr)
+        payload = json.loads(result.stdout)
+        self.assertEqual(payload['auth_source'], 'STAGEPILOT_GH_HOME')
+        self.assertNotIn('auth_home_used', payload)
 
     def test_preflight_fails_fast_when_gh_auth_is_missing(self) -> None:
         result = self.run_preflight(gh_exit_code=1, gh_status_text='not logged in')

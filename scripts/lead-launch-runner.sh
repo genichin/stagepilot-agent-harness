@@ -26,6 +26,7 @@ Options:
   --branch-name NAME       Explicit delivery branch name for auto-prepared worktree
   --worktree-path PATH     Explicit path for auto-prepared worktree
   --skip-worktree          Do not auto-prepare isolated runner worktree
+  --allow-fast-degraded    Permit documented fast-only foreground/current-workdir fallback
   --dry-run                Print derived launch values without starting tmux
   -h, --help               Show this help
 EOF
@@ -51,6 +52,7 @@ BASE_REF="main"
 BRANCH_NAME=""
 WORKTREE_PATH=""
 SKIP_WORKTREE=0
+ALLOW_FAST_DEGRADED=0
 DRY_RUN=0
 POSITIONAL=()
 
@@ -91,6 +93,10 @@ while [[ $# -gt 0 ]]; do
       ;;
     --skip-worktree)
       SKIP_WORKTREE=1
+      shift
+      ;;
+    --allow-fast-degraded)
+      ALLOW_FAST_DEGRADED=1
       shift
       ;;
     --dry-run)
@@ -156,10 +162,136 @@ case "$DELIVERY_PROFILE" in
   fast|standard|guarded) ;;
   *) echo "error: unknown delivery profile '$DELIVERY_PROFILE' (expected: fast, standard, guarded)" >&2; exit 1 ;;
 esac
+DOCTOR_MODE="$(python3 - "$DELIVERY_STATE" <<'PY'
+import json, sys
+try:
+    with open(sys.argv[1], encoding='utf-8') as f:
+        print(json.load(f).get('doctor_adoption_mode') or '')
+except Exception:
+    print('')
+PY
+)"
+DOCTOR_MODE=${DOCTOR_MODE:-not-adopted}
+case "$DOCTOR_MODE" in
+  required|optional|not-adopted) ;;
+  *) echo "error: invalid doctor_adoption_mode '$DOCTOR_MODE' in delivery state" >&2; exit 1 ;;
+esac
 
-require_cmd hermes
-require_cmd tmux
-require_cmd python3
+write_capability_state() {
+  local capability_status="$1" fallback_selected="$2" degraded_capabilities="$3"
+  python3 - "$DELIVERY_STATE" "$capability_status" "$fallback_selected" "$degraded_capabilities" <<'PY'
+import json
+import sys
+from datetime import datetime, timezone
+
+path, capability_status, fallback_selected, degraded_capabilities = sys.argv[1:]
+with open(path, encoding='utf-8') as handle:
+    state = json.load(handle)
+if not isinstance(state, dict):
+    raise SystemExit('delivery state must be a JSON object')
+state['capability_status'] = capability_status
+existing_fallbacks = state.get('fallbacks_selected', [])
+if not isinstance(existing_fallbacks, list):
+    existing_fallbacks = []
+if fallback_selected:
+    state['fallback_selected'] = fallback_selected
+    if fallback_selected not in existing_fallbacks:
+        existing_fallbacks.append(fallback_selected)
+if existing_fallbacks:
+    state['fallbacks_selected'] = existing_fallbacks
+existing_degraded = state.get('degraded_capabilities', [])
+if not isinstance(existing_degraded, list):
+    existing_degraded = []
+for capability in filter(None, degraded_capabilities.split(',')):
+    if capability not in existing_degraded:
+        existing_degraded.append(capability)
+if existing_degraded:
+    state['degraded_capabilities'] = existing_degraded
+state['updated_at'] = datetime.now(timezone.utc).isoformat()
+with open(path, 'w', encoding='utf-8') as handle:
+    json.dump(state, handle, indent=2, sort_keys=True)
+    handle.write('\n')
+PY
+}
+
+write_blocked_state() {
+  local blocker_detail="$1"
+  python3 - "$DELIVERY_STATE" "$blocker_detail" <<'PY'
+import json
+import sys
+from datetime import datetime, timezone
+
+path, detail = sys.argv[1:]
+blocker_code = (
+    'stagepilot_doctor_required_missing'
+    if detail == 'doctor_unavailable'
+    else 'launcher_prerequisite_missing'
+)
+with open(path, encoding='utf-8') as handle:
+    state = json.load(handle)
+if not isinstance(state, dict):
+    raise SystemExit('delivery state must be a JSON object')
+state.update({
+    'status': 'blocked',
+    'state': 'blocked',
+    'current_stage': 'kickoff',
+    'reason_class': 'tooling_or_access_blocker',
+    'blocker_code': blocker_code,
+    'blocker_detail': detail,
+    'capability_status': 'blocked',
+    'updated_at': datetime.now(timezone.utc).isoformat(),
+})
+with open(path, 'w', encoding='utf-8') as handle:
+    json.dump(state, handle, indent=2, sort_keys=True)
+    handle.write('\n')
+PY
+}
+
+fail_blocked() {
+  local detail="$1" message="$2"
+  echo "error: $message" >&2
+  if ! write_blocked_state "$detail"; then
+    echo "error: additionally failed to persist delivery blocker state" >&2
+  fi
+  exit 1
+}
+
+use_fast_worktree_fallback() {
+  local detail="$1" message="$2"
+  if [[ "$DELIVERY_PROFILE" == fast && "$ALLOW_FAST_DEGRADED" -eq 1 ]]; then
+    echo "warning: $message; continuing in current workdir only because fast degraded mode was explicitly approved" >&2
+    WORKDIR="$DEFAULT_ROOT_WORKDIR"
+    write_capability_state degraded current_workdir_without_worktree "$detail"
+    return 0
+  fi
+  return 1
+}
+
+if ! command -v hermes >/dev/null 2>&1; then
+  fail_blocked hermes_not_found "required command not found: hermes"
+fi
+case "$DOCTOR_MODE" in
+  required)
+    if ! command -v stagepilot-doctor >/dev/null 2>&1; then
+      fail_blocked doctor_unavailable "required doctor command not found: stagepilot-doctor"
+    fi
+    ;;
+  optional)
+    if ! command -v stagepilot-doctor >/dev/null 2>&1; then
+      write_capability_state degraded runner_validation_without_doctor stagepilot_doctor
+    fi
+    ;;
+esac
+if ! command -v tmux >/dev/null 2>&1; then
+  if [[ "$DELIVERY_PROFILE" == fast && "$ALLOW_FAST_DEGRADED" -eq 1 ]]; then
+    LAUNCH_MODE="foreground"
+    write_capability_state degraded foreground_runner_without_tmux tmux
+  else
+    fail_blocked tmux_unavailable "required command not found: tmux"
+  fi
+else
+  LAUNCH_MODE="detached"
+fi
 mkdir -p "$LOG_DIR"
 
 PREPARED_WORKTREE_PATH=""
@@ -169,12 +301,12 @@ if [[ -n "$WORKDIR" ]]; then
 elif [[ "$SKIP_WORKTREE" -eq 1 ]]; then
   WORKDIR="$DEFAULT_ROOT_WORKDIR"
 else
-  require_cmd git
-  if [[ ! -x "$PREPARE_WORKTREE_SCRIPT" ]]; then
-    echo "error: helper script not executable: $PREPARE_WORKTREE_SCRIPT" >&2
-    exit 1
-  fi
-  TARGET_REPO_ROOT="$(python3 - "$DELIVERY_STATE" <<'PY'
+  if ! command -v git >/dev/null 2>&1; then
+    use_fast_worktree_fallback git_not_found "required command not found: git" || fail_blocked git_not_found "required command not found: git"
+  elif [[ ! -x "$PREPARE_WORKTREE_SCRIPT" ]]; then
+    use_fast_worktree_fallback prepare_worktree_helper_unavailable "helper script not executable: $PREPARE_WORKTREE_SCRIPT" || fail_blocked prepare_worktree_helper_unavailable "helper script not executable: $PREPARE_WORKTREE_SCRIPT"
+  else
+    TARGET_REPO_ROOT="$(python3 - "$DELIVERY_STATE" <<'PY'
 import json, sys
 try:
     with open(sys.argv[1], 'r', encoding='utf-8') as f:
@@ -184,24 +316,25 @@ except Exception:
     print('')
 PY
 )"
-  if [[ -z "$TARGET_REPO_ROOT" ]]; then
-    TARGET_REPO_ROOT="$(pwd)"
+    if [[ -z "$TARGET_REPO_ROOT" ]]; then
+      TARGET_REPO_ROOT="$(pwd)"
+    fi
+    prep_args=("$KICKOFF_ARTIFACT" "$DELIVERY_STATE" --repo-root "$TARGET_REPO_ROOT" --base-ref "$BASE_REF")
+    if [[ -n "$BRANCH_NAME" ]]; then prep_args+=(--branch-name "$BRANCH_NAME"); fi
+    if [[ -n "$WORKTREE_PATH" ]]; then prep_args+=(--worktree-path "$WORKTREE_PATH"); fi
+    if [[ "$DRY_RUN" -eq 1 ]]; then prep_args+=(--dry-run); fi
+    if ! prep_output="$($PREPARE_WORKTREE_SCRIPT "${prep_args[@]}")"; then
+      use_fast_worktree_fallback git_worktree_prepare_failed "delivery worktree preparation failed" || fail_blocked git_worktree_prepare_failed "delivery worktree preparation failed"
+    else
+      PREPARED_WORKTREE_PATH="$(printf '%s\n' "$prep_output" | awk -F': ' '/^worktree_path:/ {print $2}')"
+      PREPARED_BRANCH_NAME="$(printf '%s\n' "$prep_output" | awk -F': ' '/^branch_name:/ {print $2}')"
+      if [[ -z "$PREPARED_WORKTREE_PATH" ]]; then
+        use_fast_worktree_fallback git_worktree_prepare_failed "failed to derive worktree path from prepare-runner-worktree output" || fail_blocked git_worktree_prepare_failed "failed to derive worktree path from prepare-runner-worktree output"
+      else
+        WORKDIR="$PREPARED_WORKTREE_PATH"
+      fi
+    fi
   fi
-  prep_args=("$KICKOFF_ARTIFACT" "$DELIVERY_STATE" --repo-root "$TARGET_REPO_ROOT" --base-ref "$BASE_REF")
-  if [[ -n "$BRANCH_NAME" ]]; then prep_args+=(--branch-name "$BRANCH_NAME"); fi
-  if [[ -n "$WORKTREE_PATH" ]]; then prep_args+=(--worktree-path "$WORKTREE_PATH"); fi
-  if [[ "$DRY_RUN" -eq 1 ]]; then prep_args+=(--dry-run); fi
-  prep_output="$($PREPARE_WORKTREE_SCRIPT "${prep_args[@]}")"
-  PREPARED_WORKTREE_PATH="$(printf '%s
-' "$prep_output" | awk -F': ' '/^worktree_path:/ {print $2}')"
-  PREPARED_BRANCH_NAME="$(printf '%s
-' "$prep_output" | awk -F': ' '/^branch_name:/ {print $2}')"
-  if [[ -z "$PREPARED_WORKTREE_PATH" ]]; then
-    echo "error: failed to derive worktree path from prepare-runner-worktree output" >&2
-    echo "$prep_output" >&2
-    exit 1
-  fi
-  WORKDIR="$PREPARED_WORKTREE_PATH"
 fi
 WORKDIR="$(abspath "$WORKDIR")"
 
@@ -237,6 +370,7 @@ Claim and execute this kickoff.
 kickoff_artifact: $KICKOFF_ARTIFACT
 delivery_state: $DELIVERY_STATE
 delivery_profile: $DELIVERY_PROFILE
+doctor_adoption_mode: $DOCTOR_MODE
 
 Instructions:
 - Read both files first.
@@ -385,14 +519,34 @@ esac
 EOF
 chmod +x "$RUNNER_SCRIPT"
 
-if tmux has-session -t "$SESSION_NAME" 2>/dev/null; then
-  echo "error: tmux session already exists: $SESSION_NAME" >&2
-  exit 1
+if [[ "$LAUNCH_MODE" == detached ]] && tmux has-session -t "$SESSION_NAME" 2>/dev/null; then
+  fail_blocked tmux_session_name_conflict "tmux session already exists: $SESSION_NAME"
 fi
 
 if [[ "$DRY_RUN" -eq 1 ]]; then
   cat <<EOF
 DRY RUN
+session_name: $SESSION_NAME
+profile: $PROFILE
+delivery_profile: $DELIVERY_PROFILE
+launch_mode: $LAUNCH_MODE
+kickoff_artifact: $KICKOFF_ARTIFACT
+delivery_state: $DELIVERY_STATE
+workdir: $WORKDIR
+prepared_branch_name: ${PREPARED_BRANCH_NAME:-}
+log_file: $LOG_FILE
+exit_file: $EXIT_FILE
+status_file: $STATUS_FILE
+launch_command: $([[ "$LAUNCH_MODE" == detached ]] && printf 'tmux new-session -d -s %s bash %s' "$SESSION_NAME" "$RUNNER_SCRIPT" || printf 'bash %s' "$RUNNER_SCRIPT")
+EOF
+  exit 0
+fi
+
+if [[ "$LAUNCH_MODE" == foreground ]]; then
+  cat <<EOF
+started: true
+background: false
+launch_mode: foreground
 session_name: $SESSION_NAME
 profile: $PROFILE
 delivery_profile: $DELIVERY_PROFILE
@@ -403,9 +557,9 @@ prepared_branch_name: ${PREPARED_BRANCH_NAME:-}
 log_file: $LOG_FILE
 exit_file: $EXIT_FILE
 status_file: $STATUS_FILE
-tmux_command: tmux new-session -d -s $SESSION_NAME bash $RUNNER_SCRIPT
 EOF
-  exit 0
+  bash "$RUNNER_SCRIPT"
+  exit $?
 fi
 
 tmux new-session -d -s "$SESSION_NAME" bash "$RUNNER_SCRIPT"
@@ -413,6 +567,7 @@ tmux new-session -d -s "$SESSION_NAME" bash "$RUNNER_SCRIPT"
 cat <<EOF
 started: true
 background: true
+launch_mode: detached
 session_name: $SESSION_NAME
 profile: $PROFILE
 delivery_profile: $DELIVERY_PROFILE

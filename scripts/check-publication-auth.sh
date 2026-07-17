@@ -7,6 +7,9 @@ Usage:
   scripts/check-publication-auth.sh [--branch NAME] [--json]
 
 Checks whether the current delivery worktree appears ready for PR-bound publication.
+`STAGEPILOT_GH_HOME`, when set, is the explicit GitHub CLI credential-home source;
+otherwise the current process `HOME` is used. The helper never probes host-specific
+credential locations and never emits raw auth command output.
 This is a preflight helper for `delivery-runner` before impl/QC work burns time.
 
 Checks performed:
@@ -70,14 +73,15 @@ if [[ -z "$BRANCH" ]]; then
 fi
 
 set +e
-auth_home="${STAGEPILOT_GH_HOME:-${HOME:-}}"
+if [[ -n "${STAGEPILOT_GH_HOME:-}" ]]; then
+  auth_home="$STAGEPILOT_GH_HOME"
+  auth_source="STAGEPILOT_GH_HOME"
+else
+  auth_home="${HOME:-}"
+  auth_source="HOME"
+fi
 gh_status_output=$(HOME="$auth_home" gh auth status 2>&1)
 gh_status_rc=$?
-if [[ "$gh_status_rc" -ne 0 && -f /home/ubuntu/.config/gh/hosts.yml ]]; then
-  auth_home="/home/ubuntu"
-  gh_status_output=$(HOME="$auth_home" gh auth status 2>&1)
-  gh_status_rc=$?
-fi
 ls_remote_output=$(HOME="$auth_home" git ls-remote origin 2>&1)
 ls_remote_rc=$?
 push_output=$(HOME="$auth_home" git push --dry-run origin "HEAD:refs/heads/$BRANCH" 2>&1)
@@ -103,13 +107,10 @@ if [[ "$JSON" -eq 1 ]]; then
   export BRANCH_NAME="$BRANCH"
   export CLASSIFICATION="$classification"
   export REASON="$reason"
-  export AUTH_HOME_USED="$auth_home"
+  export AUTH_SOURCE="$auth_source"
   export GH_STATUS_RC="$gh_status_rc"
-  export GH_STATUS_OUTPUT="$gh_status_output"
   export LS_REMOTE_RC="$ls_remote_rc"
-  export LS_REMOTE_OUTPUT="$ls_remote_output"
   export PUSH_RC="$push_rc"
-  export PUSH_OUTPUT="$push_output"
   python3 - <<'PY'
 import json
 import os
@@ -120,11 +121,11 @@ payload = {
     'branch': os.environ['BRANCH_NAME'],
     'classification': os.environ['CLASSIFICATION'],
     'reason': os.environ['REASON'],
-    'auth_home_used': os.environ['AUTH_HOME_USED'],
+    'auth_source': os.environ['AUTH_SOURCE'],
     'checks': {
-        'gh_auth_status': {'ok': int(os.environ['GH_STATUS_RC']) == 0, 'exit_code': int(os.environ['GH_STATUS_RC']), 'output': os.environ['GH_STATUS_OUTPUT']},
-        'git_ls_remote_origin': {'ok': int(os.environ['LS_REMOTE_RC']) == 0, 'exit_code': int(os.environ['LS_REMOTE_RC']), 'output': os.environ['LS_REMOTE_OUTPUT']},
-        'git_push_dry_run': {'ok': int(os.environ['PUSH_RC']) == 0, 'exit_code': int(os.environ['PUSH_RC']), 'output': os.environ['PUSH_OUTPUT']},
+        'gh_auth_status': {'ok': int(os.environ['GH_STATUS_RC']) == 0, 'exit_code': int(os.environ['GH_STATUS_RC'])},
+        'git_ls_remote_origin': {'ok': int(os.environ['LS_REMOTE_RC']) == 0, 'exit_code': int(os.environ['LS_REMOTE_RC'])},
+        'git_push_dry_run': {'ok': int(os.environ['PUSH_RC']) == 0, 'exit_code': int(os.environ['PUSH_RC'])},
     },
 }
 print(json.dumps(payload, indent=2))
@@ -136,6 +137,7 @@ origin_url: $origin_url
 branch: $BRANCH
 classification: $classification
 reason: $reason
+auth_source: $auth_source
 gh_auth_status_exit: $gh_status_rc
 git_ls_remote_exit: $ls_remote_rc
 git_push_dry_run_exit: $push_rc

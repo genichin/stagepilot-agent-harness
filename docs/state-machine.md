@@ -65,6 +65,10 @@ The root delivery-state record is the canonical machine-readable status artifact
 - `completed_batches`: completed batch ids/paths for Discovery-level roots
 - `verdict_count_for_scope`: QC verdict count for the same acceptance scope when QC looping is active
 - `validation_commands`, `qc_waiver_reason`, `residual_risk`: required evidence/waiver fields when `fast`, and required for a `standard` QC waiver
+- `doctor_adoption_mode`: `required`, `optional`, or `not-adopted` when doctor is relevant to the workspace; the project overlay is authoritative when it declares a value
+- `capability_status`: `ready`, `degraded`, or `blocked` when launch capability discovery was run
+- `required_missing`, `optional_missing`: safe capability names from the launch preflight; never include credential values or raw authentication output
+- `fallback_selected`, `degraded_capabilities`: an explicit approved fallback and its affected capabilities when execution continues in degraded mode
 
 ### State-specific requirements
 
@@ -187,6 +191,8 @@ Escalation artifacts are the canonical persisted explanation of why runner execu
 | impl child active | `running` | `impl-running` |  |  |
 | QC active | `running` | `qc-review` |  |  |
 | publication preflight failed | `blocked` | `lead-escalation` | `tooling_or_access_blocker` | `publication_auth_missing` + subtype |
+| launcher prerequisite unavailable | `blocked` | `kickoff` | `tooling_or_access_blocker` | `launcher_prerequisite_missing` + `hermes_not_found` / `tmux_unavailable` / `git_worktree_prepare_failed` subtype |
+| approved fast fallback used | `running` | `kickoff` |  | `capability_status=degraded`, fallback and residual risk recorded |
 | supervised child hit read-only stall | `blocked` | `lead-escalation` or `impl-running` | `tooling_or_access_blocker` or `verification_or_release_risk` depending on context | `timeout_no_progress_read_loop` / `read_loop_no_diff` |
 | doctor required but unavailable | `blocked` | `qc-review` or `lead-escalation` | `tooling_or_access_blocker` | `stagepilot_doctor_required_missing` |
 | runner returned merge-ready evidence | `done` | `merge-ready` |  |  |
