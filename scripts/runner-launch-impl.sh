@@ -4,7 +4,10 @@ set -euo pipefail
 usage() {
   cat <<'EOF'
 Usage:
-  scripts/runner-launch-impl.sh [--supervised] [--preset NAME] [--checkpoint-minutes N] [--max-minutes N] [--first-progress-minutes N] [--implementation-context PATH] [--no-readiness-gate] [--progress-artifact PATH] [--background] [--foreground-supervised] [--session-name NAME] <impl_handoff_artifact> <delivery_state>
+  scripts/runner-launch-impl.sh [--delivery-profile NAME] [--supervised] [--preset NAME] [--checkpoint-minutes N] [--max-minutes N] [--first-progress-minutes N] [--implementation-context PATH] [--no-readiness-gate] [--progress-artifact PATH] [--background] [--foreground-supervised] [--session-name NAME] <impl_handoff_artifact> <delivery_state>
+  scripts/runner-launch-impl.sh --delivery-profile fast [options] <delivery_state>
+
+`fast` uses the root delivery state as its manifest and therefore accepts no separate impl handoff artifact.
 
 Default:
   Unsupervised calls run foreground using Hermes profile `dev-impl`; supervised calls run detached/background unless --foreground-supervised is set.
@@ -15,6 +18,7 @@ Presets:
   long-run   checkpoint=20, max=120  Explicit long-run supervised exception.
 
 Options:
+  --delivery-profile NAME  fast | standard | guarded. If omitted, read delivery_profile from state (default: standard).
   --supervised             Run under evidence-based checkpoint supervision.
   --preset NAME            Runtime budget preset: default | stretched | long-run.
   --checkpoint-minutes N   Supervised checkpoint interval in minutes (preset-aware; explicit value overrides preset).
@@ -34,6 +38,8 @@ background=0
 foreground_supervised=0
 supervised=0
 supervised_explicit=0
+delivery_profile=""
+delivery_profile_explicit=0
 session_name=""
 preset_name="default"
 checkpoint_minutes=""
@@ -70,6 +76,12 @@ apply_preset() {
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
+    --delivery-profile)
+      delivery_profile=${2:-}
+      [[ -n "$delivery_profile" ]] || { echo "error: --delivery-profile requires a value" >&2; exit 2; }
+      delivery_profile_explicit=1
+      shift 2
+      ;;
     --background)
       background=1
       shift
@@ -140,7 +152,7 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-if [[ ${#args[@]} -ne 2 ]]; then
+if [[ ${#args[@]} -lt 1 || ${#args[@]} -gt 2 ]]; then
   usage >&2
   exit 2
 fi
@@ -151,25 +163,76 @@ apply_preset "$preset_name"
 
 script_dir=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
 worktree_root=$(git rev-parse --show-toplevel 2>/dev/null || pwd)
-impl_handoff=$(realpath "${args[0]}")
-delivery_state=$(realpath "${args[1]}")
+if [[ ${#args[@]} -eq 1 ]]; then
+  impl_handoff=""
+  delivery_state=$(realpath "${args[0]}")
+else
+  impl_handoff=$(realpath "${args[0]}")
+  delivery_state=$(realpath "${args[1]}")
+fi
 
-[[ -f "$impl_handoff" ]] || { echo "error: impl handoff artifact not found: $impl_handoff" >&2; exit 1; }
 [[ -f "$delivery_state" ]] || { echo "error: delivery state not found: $delivery_state" >&2; exit 1; }
+if [[ $delivery_profile_explicit -eq 0 ]]; then
+  delivery_profile=$(grep -Eom1 '"delivery_profile"[[:space:]]*:[[:space:]]*"[^"]+"' "$delivery_state" 2>/dev/null | sed -E 's/.*"([^"]+)"[[:space:]]*$/\1/' || true)
+fi
+delivery_profile=${delivery_profile:-standard}
+case "$delivery_profile" in
+  fast)
+    [[ $supervised -eq 0 ]] || { echo "error: fast profile forbids --supervised; use a foreground impl launch with targeted runner validation" >&2; exit 2; }
+    [[ $background -eq 0 ]] || { echo "error: fast profile forbids --background; use a foreground impl launch with targeted runner validation" >&2; exit 2; }
+    readiness_gate=0
+    ;;
+  standard)
+    ;;
+  guarded)
+    supervised=1
+    readiness_gate=1
+    ;;
+  *)
+    echo "error: unknown delivery profile '$delivery_profile' (expected: fast, standard, guarded)" >&2
+    exit 2
+    ;;
+esac
+if [[ $delivery_profile != fast && -z "$impl_handoff" ]]; then
+  echo "error: $delivery_profile profile requires <impl_handoff_artifact> <delivery_state>" >&2
+  exit 2
+fi
+if [[ -n "$impl_handoff" ]]; then
+  [[ -f "$impl_handoff" ]] || { echo "error: impl handoff artifact not found: $impl_handoff" >&2; exit 1; }
+fi
 command -v hermes >/dev/null 2>&1 || { echo "error: hermes not found in PATH" >&2; exit 1; }
 command -v python3 >/dev/null 2>&1 || { echo "error: python3 not found in PATH" >&2; exit 1; }
 
-handoff_id=$(basename "$impl_handoff")
+handoff_id=$(basename "${impl_handoff:-$delivery_state}")
 handoff_id=${handoff_id%.*}
 supervise_worker="$script_dir/supervise_worker.py"
 [[ -f "$supervise_worker" ]] || { echo "error: supervise_worker.py not found next to launcher: $supervise_worker" >&2; exit 1; }
-progress_artifact=${progress_artifact_override:-"$worktree_root/.stagepilot/worker-progress/${handoff_id}.md"}
-implementation_context=${implementation_context_override:-"${impl_handoff%.*}-implementation-context.md"}
+if [[ $delivery_profile == fast ]]; then
+  progress_artifact=""
+  implementation_context=""
+  handoff_reference="(fast profile: root delivery state is the manifest)"
+  progress_instruction="For fast delivery, return changed files, targeted validation commands/evidence, and residual risk so the runner can record them in root state."
+else
+  progress_artifact=${progress_artifact_override:-"$worktree_root/.stagepilot/worker-progress/${handoff_id}.md"}
+  implementation_context=${implementation_context_override:-"${impl_handoff%.*}-implementation-context.md"}
+  handoff_reference="$impl_handoff"
+  progress_instruction="You must create or update the progress artifact before the first-progress deadline (${first_progress_minutes} minute(s)) if no code diff/check evidence exists yet:
+$progress_artifact
+Required progress fields:
+- current step
+- files inspected
+- files modified
+- design/implementation decisions made
+- commands/checks run
+- current blocker, if any
+- next concrete step
+Heartbeat-only messages do not count as progress."
+fi
 
 # If the runner forgot to pass --implementation-context but the handoff names one,
 # recover the bounded context path here. This prevents silent fallback to an
 # unbounded implementation agent when a readiness-gated context exists.
-if [[ -z "$implementation_context_override" ]]; then
+if [[ -n "$impl_handoff" && -z "$implementation_context_override" ]]; then
   context_from_handoff=$(grep -Eim1 '^[[:space:]-]*(Implementation context|implementation_context):' "$impl_handoff" 2>/dev/null     | sed -E 's/^[[:space:]-]*(Implementation context|implementation_context):[[:space:]]*//I; s/^`//; s/`$//; s/[[:space:]]+$//' || true)
   if [[ -n "$context_from_handoff" ]]; then
     implementation_context="$context_from_handoff"
@@ -182,7 +245,9 @@ if [[ $supervised -eq 0 && -f "$implementation_context" && $readiness_gate -eq 1
   supervised=1
   echo "notice: auto-enabled --supervised because implementation-context was found: $implementation_context" >&2
 fi
-mkdir -p "$(dirname "$progress_artifact")"
+if [[ -n "$progress_artifact" ]]; then
+  mkdir -p "$(dirname "$progress_artifact")"
+fi
 
 validate_implementation_context() {
   local ctx=$1
@@ -228,12 +293,12 @@ Execute the implementation handoff as dev-impl.
 
 WORKER LANE SESSION: treat this as the current impl worker-lane execution. If this is a first handoff, retry, rework, or new batch, do not rely on prior chat/session context; use only the artifacts named below and linked evidence paths. Same-lane continuity is valid only for healthy same-handoff follow-up with concrete prior progress.
 
-impl_handoff_artifact: $impl_handoff
+impl_handoff_artifact: $handoff_reference
 delivery_state: $delivery_state
 implementation_context: ${implementation_context:-not-provided}
-progress_artifact: $progress_artifact
+progress_artifact: ${progress_artifact:-not-required-for-fast}
 
-Read the implementation_context first when provided, then the handoff and delivery state.
+Read the delivery state first; when provided, read the implementation context and handoff before editing.
 The implementation_context is the bounded source of edit anchors, service seams, return shape, render insertion point, test assertions, forbidden data exposure, and search budget.
 PATCH-FIRST MODE: when implementation_context is present and readiness-gated, treat it as the edit contract, not a research prompt.
 After reading the context/handoff/state, read only the exact target snippets needed for the listed edit anchors, then immediately do one of: patch/write an in-scope file, write a concrete blocker to the progress artifact naming the invalid anchor/seam/key, or run a listed validation pre-check only if explicitly required.
@@ -248,17 +313,7 @@ Return:
 3) evidence paths or evidence summary
 4) residual risks or blockers
 If blocked, say so explicitly.
-You must create or update the progress artifact before the first-progress deadline (${first_progress_minutes} minute(s)) if no code diff/check evidence exists yet:
-$progress_artifact
-Required progress fields:
-- current step
-- files inspected
-- files modified
-- design/implementation decisions made
-- commands/checks run
-- current blocker, if any
-- next concrete step
-Heartbeat-only messages do not count as progress.
+$progress_instruction
 Do not use kanban.
 EOF
 )
@@ -285,13 +340,14 @@ run_supervised() {
   if [[ $background -eq 0 ]]; then
     echo "mode: foreground-supervised"
     echo "profile: dev-impl"
+    echo "delivery_profile: $delivery_profile"
     echo "preset: $preset_name"
     echo "checkpoint_minutes: $checkpoint_minutes"
     echo "max_minutes: $max_minutes"
     echo "first_progress_minutes: $first_progress_minutes"
     echo "implementation_context: ${implementation_context:-not-provided}"
     echo "readiness_gate: $readiness_gate"
-    echo "impl_handoff_artifact: $impl_handoff"
+    echo "impl_handoff_artifact: $handoff_reference"
     echo "delivery_state: $delivery_state"
     echo "progress_artifact: $progress_artifact"
     exec "${supervisor_cmd[@]}"
@@ -318,7 +374,7 @@ run_supervised() {
   echo "first_progress_minutes: $first_progress_minutes"
   echo "implementation_context: ${implementation_context:-not-provided}"
   echo "readiness_gate: $readiness_gate"
-  echo "impl_handoff_artifact: $impl_handoff"
+  echo "impl_handoff_artifact: $handoff_reference"
   echo "delivery_state: $delivery_state"
   echo "progress_artifact: $progress_artifact"
   echo "log_file: $log_file"
@@ -340,7 +396,7 @@ if [[ $background -eq 0 ]]; then
   echo "first_progress_minutes: $first_progress_minutes"
   echo "implementation_context: ${implementation_context:-not-provided}"
   echo "readiness_gate: $readiness_gate"
-  echo "impl_handoff_artifact: $impl_handoff"
+  echo "impl_handoff_artifact: $handoff_reference"
   echo "delivery_state: $delivery_state"
   echo "progress_artifact: $progress_artifact"
   exec hermes --profile dev-impl chat -q "$prompt"
@@ -364,7 +420,7 @@ echo "profile: dev-impl"
 echo "preset: $preset_name"
 echo "checkpoint_minutes: $checkpoint_minutes"
 echo "max_minutes: $max_minutes"
-echo "impl_handoff_artifact: $impl_handoff"
+echo "impl_handoff_artifact: $handoff_reference"
 echo "delivery_state: $delivery_state"
 echo "progress_artifact: $progress_artifact"
 echo "log_file: $log_file"

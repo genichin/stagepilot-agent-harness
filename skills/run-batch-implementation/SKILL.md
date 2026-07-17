@@ -27,7 +27,8 @@ This skill executes the implementation work for a batch, updates code, and recor
 # Core Rules
 
 - planning과 design이 없는 batch는 구현하지 않는다.
-- non-trivial supervised `dev-impl` handoff 전에는 runner가 implementation-context artifact를 준비해야 한다. 이 artifact는 target files, edit anchors, service seams, return shape, render insertion point, test assertions, forbidden data exposure, allowed search budget, validation commands, first-progress deadline을 포함해야 한다.
+- `fast` profile may use the root state as the minimal manifest and skips an implementation-context/readiness gate; runner records targeted validation evidence, waiver reason, and residual risk. `guarded` implementation requires the existing supervised implementation-context contract.
+- For non-trivial supervised `dev-impl` handoff, runner must prepare an implementation-context artifact. This artifact includes target files, edit anchors, service seams, return shape, render insertion point, test assertions, forbidden data exposure, allowed search budget, validation commands, and first-progress deadline.
 - patch-ready implementation-context가 있으면 `dev-impl`는 patch-first 모드로 동작한다: context를 실행 계약으로 받아들이고, exact target snippets만 읽은 뒤 곧바로 edit/write 또는 concrete blocker를 남긴다. service seam/return shape/render insertion point가 이미 pin 되어 있으면 repo에서 다시 설계·탐색하지 않는다.
 - 코드 변경 전 `implementation.md`의 Plan Summary와 Changed Files 초안을 먼저 맞춘다.
 - 구현 직후 가장 좁은 테스트, lint, typecheck, 또는 동작 검증을 수행한다.

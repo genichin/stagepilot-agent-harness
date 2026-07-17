@@ -1,5 +1,7 @@
 # stagepilot-agent-harness
 
+> **Delivery profiles:** [fast / standard / guarded](docs/delivery-profiles.md) make orchestration proportional to change risk. This repository defines the source harness only; it does not roll changes into active Hermes profiles or already-running sessions.
+
 A reusable operating harness for StagePilot-style multi-agent delivery using four core roles:
 
 - `lead`

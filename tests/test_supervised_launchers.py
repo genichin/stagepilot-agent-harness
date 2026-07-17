@@ -318,6 +318,55 @@ class SupervisedLauncherPathResolutionTest(unittest.TestCase):
             self.assertIn('## Test assertions', result.stderr)
             self.assertIn('## Forbidden data exposure', result.stderr)
 
+    def test_delivery_profiles_reject_invalid_control_paths(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp_path = Path(tmp)
+            handoff = tmp_path / 'handoff.md'
+            state = tmp_path / 'state.json'
+            handoff.write_text('handoff\n', encoding='utf-8')
+            state.write_text('{}\n', encoding='utf-8')
+
+            fast_qc = subprocess.run(
+                [str(QC), '--delivery-profile', 'fast', str(handoff), str(state)],
+                text=True, capture_output=True, check=False,
+            )
+            self.assertEqual(fast_qc.returncode, 2)
+            self.assertIn('fast profile has no dev-qc handoff', fast_qc.stderr)
+
+            guarded_impl = subprocess.run(
+                [str(IMPL), '--delivery-profile', 'guarded', str(handoff), str(state)],
+                text=True, capture_output=True, check=False,
+            )
+            self.assertEqual(guarded_impl.returncode, 4)
+            self.assertIn('implementation-context artifact required', guarded_impl.stderr)
+
+            fast_supervised_impl = subprocess.run(
+                [str(IMPL), '--delivery-profile', 'fast', '--supervised', str(handoff), str(state)],
+                text=True, capture_output=True, check=False,
+            )
+            self.assertEqual(fast_supervised_impl.returncode, 2)
+            self.assertIn('fast profile forbids --supervised', fast_supervised_impl.stderr)
+
+    def test_fast_impl_uses_root_state_without_handoff_artifact(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp_path = Path(tmp)
+            state = tmp_path / 'state.json'
+            state.write_text('{"delivery_profile":"fast"}\n', encoding='utf-8')
+            bin_dir = tmp_path / 'bin'
+            bin_dir.mkdir()
+            hermes_stub = bin_dir / 'hermes'
+            hermes_stub.write_text('#!/usr/bin/env bash\nexit 0\n', encoding='utf-8')
+            hermes_stub.chmod(0o755)
+            env = os.environ.copy()
+            env['PATH'] = f"{bin_dir}:{env['PATH']}"
+            result = subprocess.run(
+                [str(IMPL), str(state)], cwd=tmp_path, env=env,
+                text=True, capture_output=True, check=False,
+            )
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertIn('impl_handoff_artifact: (fast profile: root delivery state is the manifest)', result.stdout)
+            self.assertFalse((tmp_path / '.stagepilot').exists())
+
     def test_qc_supervised_launcher_uses_harness_helper_and_target_worktree(self) -> None:
         observed = self.run_launcher(QC, 'qc-handoff.md')
         self.assert_common(observed, label='qc', profile='dev-qc', handoff_name='qc-handoff.md', expect_preset=False)

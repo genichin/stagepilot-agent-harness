@@ -43,6 +43,7 @@ The root delivery-state record is the canonical machine-readable status artifact
 - `owner_target`: intended active owner (`delivery-runner`, `dev-impl`, `dev-qc`, or `lead` depending on the moment)
 - `goal`: short current delivery goal for the active root kickoff
 - `kickoff_artifact`: path to the persisted root kickoff artifact
+- `delivery_profile`: `fast`, `standard`, or `guarded`; new records must write it; legacy/missing records default to `standard`. See [Delivery profiles](delivery-profiles.md).
 - `updated_at`: timestamp of the latest authoritative write
 
 ### Strongly recommended fields
@@ -63,6 +64,7 @@ The root delivery-state record is the canonical machine-readable status artifact
 - `current_batch`: active batch id/path when a Discovery-level root is executing a queue
 - `completed_batches`: completed batch ids/paths for Discovery-level roots
 - `verdict_count_for_scope`: QC verdict count for the same acceptance scope when QC looping is active
+- `validation_commands`, `qc_waiver_reason`, `residual_risk`: required evidence/waiver fields when `fast`, and required for a `standard` QC waiver
 
 ### State-specific requirements
 

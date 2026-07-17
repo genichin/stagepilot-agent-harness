@@ -2,6 +2,12 @@
 
 This handoff is transport-agnostic. It may be issued through ordinary runner-to-worker instructions, documents, or messages. Kanban representation is forbidden.
 
+## Delivery-profile trigger
+
+- `fast` has no QC handoff: runner performs targeted validation and records its waiver/reason/residual risk in root state.
+- `standard` requests QC only when security/data/contract/multi-module/release risk exists or runner validation cannot establish acceptance; any waiver is structural root-state evidence.
+- `guarded` always runs the independent supervised QC path.
+
 ## Default launch rule
 
 - Default launch mode is foreground bounded worker execution.

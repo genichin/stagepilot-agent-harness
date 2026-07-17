@@ -12,6 +12,10 @@ metadata:
 
 # StagePilot Handoffs
 
+## Delivery-profile gate
+
+Before creating a child handoff, set the root state's `delivery_profile` (`fast`, `standard`, or `guarded`) per [the canonical policy](../../docs/delivery-profiles.md). `fast` uses the root state as the minimal manifest, launches foreground impl without a readiness context, skips QC, and records targeted validation plus waiver/residual risk in root state. `standard` requires QC/supervision only for documented risk triggers. `guarded` requires the existing full implementation-context, supervised evidence, and independent QC trail. Launchers accept `--delivery-profile`; omitted flags resolve from root state and default to `standard`.
+
 ## Overview
 
 This skill standardizes how work crosses role boundaries inside the StagePilot harness. The goal is to make handovers self-contained, reviewable, and testable rather than implied through chat context.

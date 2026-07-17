@@ -53,6 +53,13 @@ This skill orchestrates the Delivery phase for one already-created batch by chai
 
 # Core Rules
 
+## 0. Delivery profile first
+
+- Select and persist `delivery_profile` (`fast`, `standard`, `guarded`) before selecting the chain; canonical policy is [docs/delivery-profiles.md](../../docs/delivery-profiles.md).
+- `fast` is only for one small local low-risk change and replaces the six-stage chain with runner → impl → targeted validation; record validation, QC waiver reason, and residual risk in root state.
+- `standard` retains this chain when its stages are justified, but QC/supervision are risk-triggered rather than automatic.
+- `guarded` requires the complete chain and full supervised independent review.
+
 ## 1. 배치 단위 orchestration
 
 - 이 skill은 정확히 하나의 batch를 대상으로 한다.

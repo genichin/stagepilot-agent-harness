@@ -4,12 +4,13 @@ set -euo pipefail
 usage() {
   cat <<'EOF'
 Usage:
-  scripts/runner-launch-qc.sh [--supervised] [--checkpoint-minutes N] [--max-minutes N] [--first-progress-minutes N] [--progress-artifact PATH] [--background] [--foreground-supervised] [--session-name NAME] <qc_handoff_artifact> <delivery_state>
+  scripts/runner-launch-qc.sh [--delivery-profile NAME] [--supervised] [--checkpoint-minutes N] [--max-minutes N] [--first-progress-minutes N] [--progress-artifact PATH] [--background] [--foreground-supervised] [--session-name NAME] <qc_handoff_artifact> <delivery_state>
 
 Default:
   Unsupervised calls run foreground using Hermes profile `dev-qc`; supervised calls run detached/background unless --foreground-supervised is set.
 
 Options:
+  --delivery-profile NAME  fast | standard | guarded. If omitted, read delivery_profile from state (default: standard).
   --supervised             Run under evidence-based checkpoint supervision.
   --checkpoint-minutes N   Supervised checkpoint interval in minutes (default: 10).
   --max-minutes N          Supervised hard runtime cap in minutes (default: 60).
@@ -25,6 +26,8 @@ EOF
 background=0
 foreground_supervised=0
 supervised=0
+delivery_profile=""
+delivery_profile_explicit=0
 session_name=""
 checkpoint_minutes="10"
 max_minutes="60"
@@ -34,6 +37,12 @@ args=()
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
+    --delivery-profile)
+      delivery_profile=${2:-}
+      [[ -n "$delivery_profile" ]] || { echo "error: --delivery-profile requires a value" >&2; exit 2; }
+      delivery_profile_explicit=1
+      shift 2
+      ;;
     --background)
       background=1
       shift
@@ -98,6 +107,25 @@ delivery_state=$(realpath "${args[1]}")
 
 [[ -f "$qc_handoff" ]] || { echo "error: qc handoff artifact not found: $qc_handoff" >&2; exit 1; }
 [[ -f "$delivery_state" ]] || { echo "error: delivery state not found: $delivery_state" >&2; exit 1; }
+if [[ $delivery_profile_explicit -eq 0 ]]; then
+  delivery_profile=$(grep -Eom1 '"delivery_profile"[[:space:]]*:[[:space:]]*"[^"]+"' "$delivery_state" 2>/dev/null | sed -E 's/.*"([^"]+)"[[:space:]]*$/\1/' || true)
+fi
+delivery_profile=${delivery_profile:-standard}
+case "$delivery_profile" in
+  fast)
+    echo "error: fast profile has no dev-qc handoff; runner must record targeted validation in the root delivery state" >&2
+    exit 2
+    ;;
+  standard)
+    ;;
+  guarded)
+    supervised=1
+    ;;
+  *)
+    echo "error: unknown delivery profile '$delivery_profile' (expected: fast, standard, guarded)" >&2
+    exit 2
+    ;;
+esac
 command -v hermes >/dev/null 2>&1 || { echo "error: hermes not found in PATH" >&2; exit 1; }
 command -v python3 >/dev/null 2>&1 || { echo "error: python3 not found in PATH" >&2; exit 1; }
 

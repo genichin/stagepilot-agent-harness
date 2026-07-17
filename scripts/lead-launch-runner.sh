@@ -18,6 +18,7 @@ conventions or explicit `--worktree-path` / `--workdir` overrides.
 
 Options:
   --profile NAME           Hermes profile to launch (default: delivery-runner)
+  --delivery-profile NAME  fast | standard | guarded (default: state value or standard)
   --session-name NAME      tmux session name (default: runner-<kickoff-base>-<timestamp>)
   --log-dir PATH           Log directory (default: ./.stagepilot/runner-logs)
   --workdir PATH           Explicit working directory for the Hermes process; skips auto worktree prep
@@ -42,6 +43,7 @@ abspath() {
 }
 
 PROFILE="delivery-runner"
+DELIVERY_PROFILE=""
 SESSION_NAME=""
 LOG_DIR=""
 WORKDIR=""
@@ -54,6 +56,11 @@ POSITIONAL=()
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
+    --delivery-profile)
+      DELIVERY_PROFILE=${2:-}
+      [[ -n "$DELIVERY_PROFILE" ]] || { echo "error: --delivery-profile requires a value" >&2; exit 1; }
+      shift 2
+      ;;
     --profile)
       PROFILE="$2"
       shift 2
@@ -133,6 +140,22 @@ if [[ ! -f "$DELIVERY_STATE" ]]; then
   echo "error: delivery state not found: $DELIVERY_STATE" >&2
   exit 1
 fi
+if [[ -z "$DELIVERY_PROFILE" ]]; then
+  DELIVERY_PROFILE="$(python3 - "$DELIVERY_STATE" <<'PY'
+import json, sys
+try:
+    with open(sys.argv[1], encoding='utf-8') as f:
+        print(json.load(f).get('delivery_profile') or '')
+except Exception:
+    print('')
+PY
+)"
+fi
+DELIVERY_PROFILE=${DELIVERY_PROFILE:-standard}
+case "$DELIVERY_PROFILE" in
+  fast|standard|guarded) ;;
+  *) echo "error: unknown delivery profile '$DELIVERY_PROFILE' (expected: fast, standard, guarded)" >&2; exit 1 ;;
+esac
 
 require_cmd hermes
 require_cmd tmux
@@ -199,12 +222,21 @@ RUNNER_SCRIPT="$TMP_DIR/run-runner.sh"
 IMPL_LAUNCHER="$SCRIPT_DIR/runner-launch-impl.sh"
 QC_LAUNCHER="$SCRIPT_DIR/runner-launch-qc.sh"
 PUBLICATION_PREFLIGHT="$SCRIPT_DIR/check-publication-auth.sh"
+if [[ "$DELIVERY_PROFILE" == guarded ]]; then
+  PREFLIGHT_INSTRUCTION="- For PR-bound guarded delivery, run publication auth preflight before substantial impl/QC effort and record the outcome in the delivery trail:
+  - publication_preflight: $PUBLICATION_PREFLIGHT --json
+  - minimum checks: git remote get-url origin, gh auth status, git ls-remote origin, git push --dry-run origin HEAD:refs/heads/<current-branch>
+  - if preflight fails, stop early, reflect a blocked/escalation trail entry, and classify it with reason code publication_auth_missing (or a more specific suffix from the helper output)."
+else
+  PREFLIGHT_INSTRUCTION="- Do not run publication preflight by default for this $DELIVERY_PROFILE delivery. Escalate to guarded if PR publication or release-sensitive risk becomes part of scope."
+fi
 
 cat > "$PROMPT_FILE" <<EOF
 Claim and execute this kickoff.
 
 kickoff_artifact: $KICKOFF_ARTIFACT
 delivery_state: $DELIVERY_STATE
+delivery_profile: $DELIVERY_PROFILE
 
 Instructions:
 - Read both files first.
@@ -214,10 +246,11 @@ Instructions:
 - Keep all delivery-branch code, tests, commits, and PR work inside the current isolated worktree.
 - Do not pull unapproved live Discovery/REQ edits from the lead checkout into the delivery branch automatically; require explicit lead re-handoff or sync direction.
 - Continue orchestration only within approved scope.
-- Before spending substantial impl/QC effort on PR-bound delivery, run publication auth preflight from the delivery worktree and record the outcome in the delivery trail:
-  - publication_preflight: $PUBLICATION_PREFLIGHT --json
-  - minimum checks: git remote get-url origin, gh auth status, git ls-remote origin, git push --dry-run origin HEAD:refs/heads/<current-branch>
-  - if preflight fails, stop early, reflect a blocked/escalation trail entry, and classify it with reason code publication_auth_missing (or a more specific suffix from the helper output).
+- Enforce the declared delivery_profile and normalize a missing/legacy state field to it on the next state write:
+  - fast: only a small local low-risk change; launch impl foreground without supervision, do not launch QC, and record targeted validation plus the QC waiver reason/residual risk in root state.
+  - standard: use normal handoffs, but require QC/supervision only when risk triggers apply; record any waiver structurally in root state.
+  - guarded: retain isolated worktree, publication preflight, supervised impl and supervised independent QC.
+$PREFLIGHT_INSTRUCTION
 - Use the canonical child launchers by default:
   - impl_launcher: $IMPL_LAUNCHER
   - qc_launcher: $QC_LAUNCHER
@@ -362,6 +395,7 @@ if [[ "$DRY_RUN" -eq 1 ]]; then
 DRY RUN
 session_name: $SESSION_NAME
 profile: $PROFILE
+delivery_profile: $DELIVERY_PROFILE
 kickoff_artifact: $KICKOFF_ARTIFACT
 delivery_state: $DELIVERY_STATE
 workdir: $WORKDIR
@@ -381,6 +415,7 @@ started: true
 background: true
 session_name: $SESSION_NAME
 profile: $PROFILE
+delivery_profile: $DELIVERY_PROFILE
 kickoff_artifact: $KICKOFF_ARTIFACT
 delivery_state: $DELIVERY_STATE
 workdir: $WORKDIR
