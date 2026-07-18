@@ -141,6 +141,7 @@ fi
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd -- "$SCRIPT_DIR/.." && pwd)"
 PREPARE_WORKTREE_SCRIPT="$SCRIPT_DIR/prepare-runner-worktree.sh"
+SCOPE_VALIDATOR="$SCRIPT_DIR/validate_scope_snapshot.py"
 DEFAULT_ROOT_WORKDIR="$REPO_ROOT"
 LOG_DIR="${LOG_DIR:-$REPO_ROOT/.stagepilot/runner-logs}"
 
@@ -281,13 +282,13 @@ PY
 }
 
 write_blocked_state() {
-  local blocker_detail="$1"
-  python3 - "$DELIVERY_STATE" "$PRELAUNCH_STATUS_FILE" "$blocker_detail" <<'PY'
+  local blocker_detail="$1" reason_class="${2:-tooling_or_access_blocker}"
+  python3 - "$DELIVERY_STATE" "$PRELAUNCH_STATUS_FILE" "$blocker_detail" "$reason_class" <<'PY'
 import json
 import sys
 from datetime import datetime, timezone
 
-path, status_path, detail = sys.argv[1:]
+path, status_path, detail, reason_class = sys.argv[1:]
 blocker_codes = {
     'hermes_not_found': 'hermes_profile_unavailable',
     'hermes_profile_unavailable': 'hermes_profile_unavailable',
@@ -301,7 +302,7 @@ blocker_codes = {
     'fast_shared_workdir_in_use': 'fast_shared_workdir_in_use',
     'doctor_unavailable': 'stagepilot_doctor_required_missing',
 }
-blocker_code = blocker_codes.get(detail, 'launcher_prerequisite_missing')
+blocker_code = detail if detail.startswith('scope_') else blocker_codes.get(detail, 'launcher_prerequisite_missing')
 timestamp = datetime.now(timezone.utc).isoformat()
 launcher_status = {
     'classification': blocker_code,
@@ -318,7 +319,7 @@ state.update({
     'status': 'blocked',
     'state': 'blocked',
     'current_stage': 'kickoff',
-    'reason_class': 'tooling_or_access_blocker',
+    'reason_class': reason_class,
     'blocker_code': blocker_code,
     'blocker_detail': detail,
     'capability_status': 'blocked',
@@ -336,12 +337,35 @@ PY
 }
 
 fail_blocked() {
-  local detail="$1" message="$2"
+  local detail="$1" message="$2" reason_class="${3:-tooling_or_access_blocker}"
   echo "error: $message" >&2
-  if ! write_blocked_state "$detail"; then
+  if ! write_blocked_state "$detail" "$reason_class"; then
     echo "error: additionally failed to persist delivery blocker state" >&2
   fi
   exit 1
+}
+
+validate_launch_scope() {
+  local result code
+  if [[ ! -x "$SCOPE_VALIDATOR" ]]; then
+    fail_blocked scope_validator_unavailable "scope snapshot validator is unavailable" scope_or_requirements
+  fi
+  if result="$($SCOPE_VALIDATOR --state "$DELIVERY_STATE" --kickoff "$KICKOFF_ARTIFACT" --format json)"; then
+    return 0
+  fi
+  code="$(python3 - "$result" <<'PY'
+import json
+import sys
+try:
+    payload = json.loads(sys.argv[1])
+    findings = payload.get('findings', [])
+    code = findings[0].get('code') if findings and isinstance(findings[0], dict) else None
+    print(code or 'scope_preflight_failed')
+except Exception:
+    print('scope_preflight_failed')
+PY
+)"
+  fail_blocked "$code" "approved scope snapshot validation failed" scope_or_requirements
 }
 
 require_fast_shared_workdir_ack() {
@@ -411,6 +435,8 @@ use_fast_worktree_fallback() {
   fi
   return 1
 }
+
+validate_launch_scope
 
 if ! command -v hermes >/dev/null 2>&1; then
   fail_blocked hermes_not_found "required command not found: hermes"

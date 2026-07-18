@@ -1,7 +1,7 @@
 ---
 name: stagepilot-agent-harness
 description: Use when setting up, refining, or operating the StagePilot multi-agent harness with lead, delivery-runner, dev-impl, and dev-qc roles.
-version: 1.1.0
+version: 1.2.0
 author: Hermes Agent
 license: MIT
 metadata:
@@ -54,6 +54,7 @@ Runtime provisioning is part of applying the harness: the repo's `skills/` catal
 - `confirm-req` approval and delivery slicing are separate decisions: when a confirmed Discovery produced multiple eligible Proposed REQs, the approval gate should evaluate and approve the eligible REQ set together; the runner later groups/splits that Approved set into batches, PRs, and implementation slices.
 - The default `lead -> delivery-runner` root transport is a kickoff artifact plus delivery-state record; optional Telegram notification may mirror kickoff for visibility, but notification is not the source of truth.
 - The default root launcher (`scripts/lead-launch-runner.sh`) prepares a dedicated git worktree/branch per kickoff and runs `delivery-runner` inside it so lead/human Discovery edits in the main checkout do not contaminate the delivery PR branch.
+- Every launched root binds one immutable approved scope snapshot: root state must name its relative snapshot path, `REQ@revision`, and SHA-256 digest; the kickoff repeats the REQ revision or path. The launcher validates that binding before capability/worktree checks. Workers implement it and escalate `scope_or_requirements` conflicts; only the lead can issue a higher approved revision. See `../../docs/scope-governance.md`.
 - Downstream `delivery-runner -> dev-impl` and `delivery-runner -> dev-qc` handoffs are transport-agnostic by default and must not use kanban.
 - The default downstream launch path is explicit runner-owned worker execution: `scripts/runner-launch-impl.sh <impl_handoff_artifact> <delivery_state>` and `scripts/runner-launch-qc.sh <qc_handoff_artifact> <delivery_state>` for short/simple bounded work.
 - Worker session management follows the **worker lane** policy: the first impl/QC handoff for a batch/verdict starts a fresh child execution session; a healthy same-handoff continuation may reuse the same lane only when scope/context/acceptance are unchanged and prior concrete progress exists; any error, timeout, blocker, context compaction, no-progress stop, failed-validation rework, new batch, or new root requires a fresh child execution with prior attempt context passed only through explicit artifacts.

@@ -27,8 +27,26 @@ class LeadLauncherCapabilityTests(unittest.TestCase):
         hermes = self.bin_dir / 'hermes'
         hermes.write_text('#!/usr/bin/env bash\nexit 0\n', encoding='utf-8')
         hermes.chmod(0o755)
+        self.scope = self.tmp / 'scope.json'
+        self.scope.write_text(json.dumps({
+            'schema_version': 1,
+            'requirement_id': 'REQ-42',
+            'revision': 1,
+            'status': 'approved',
+            'approval_ref': 'APR-42-R1',
+            'risk_assessment': 'The fixture uses only a local dry-run.',
+            'evidence_refs': ['EVID-42-TEST'],
+            'source_refs': ['DISC-17'],
+            'scope_summary': 'Exercise launcher capability behavior.',
+            'acceptance_criteria': ['The launcher produces the expected state.'],
+            'non_goals': [],
+            'locked_decisions': [],
+            'change_policy': 'lead_approved_revision',
+        }, indent=2) + '\n', encoding='utf-8')
+        import hashlib
+        self.scope_digest = hashlib.sha256(self.scope.read_bytes()).hexdigest()
         self.kickoff = self.tmp / 'kickoff.md'
-        self.kickoff.write_text('# kickoff\n', encoding='utf-8')
+        self.kickoff.write_text('# kickoff\nApproved scope: REQ-42@1\n', encoding='utf-8')
 
     def tearDown(self) -> None:
         self.tempdir.cleanup()
@@ -42,7 +60,14 @@ class LeadLauncherCapabilityTests(unittest.TestCase):
         env_updates: dict[str, str] | None = None,
     ) -> tuple[subprocess.CompletedProcess[str], dict]:
         state = self.tmp / f'{profile}.json'
-        payload = {'delivery_profile': profile, 'status': 'ready'}
+        payload = {
+            'delivery_profile': profile,
+            'status': 'ready',
+            'scope_snapshot': 'scope.json',
+            'scope_revision': 1,
+            'scope_snapshot_sha256': self.scope_digest,
+            'approved_refs': ['REQ-42@1'],
+        }
         if doctor_mode is not None:
             payload['doctor_adoption_mode'] = doctor_mode
         state.write_text(json.dumps(payload), encoding='utf-8')
@@ -240,6 +265,27 @@ class LeadLauncherCapabilityTests(unittest.TestCase):
         self.assertEqual(result.returncode, 1)
         self.assertEqual(state['blocker_detail'], 'fast_shared_workdir_risk_unacknowledged')
         self.assertEqual(state['blocker_code'], 'fast_shared_workdir_risk_unacknowledged')
+    def test_launcher_blocks_invalid_scope_before_capability_checks(self) -> None:
+        state = self.tmp / 'scope-invalid.json'
+        state.write_text(json.dumps({
+            'delivery_profile': 'standard',
+            'status': 'ready',
+            'scope_snapshot': 'scope.json',
+            'scope_revision': 2,
+            'scope_snapshot_sha256': self.scope_digest,
+            'approved_refs': ['REQ-42@1'],
+        }), encoding='utf-8')
+        env = os.environ.copy()
+        env['PATH'] = str(self.bin_dir)
+        result = subprocess.run(
+            [str(SCRIPT), '--dry-run', '--skip-worktree', str(self.kickoff), str(state)],
+            cwd=self.tmp, env=env, text=True, capture_output=True, check=False,
+        )
+        observed = json.loads(state.read_text(encoding='utf-8'))
+        self.assertEqual(result.returncode, 1)
+        self.assertEqual(observed['reason_class'], 'scope_or_requirements')
+        self.assertEqual(observed['blocker_code'], 'scope_revision_mismatch')
+        self.assertEqual(observed['launcher_status']['phase'], 'prelaunch')
 
 
 if __name__ == '__main__':

@@ -7,8 +7,13 @@
 - goal:
 
 ## Scope guardrails
+- canonical scope snapshot path (relative to delivery state):
+- approved REQ revision (for example `REQ-42@3`):
+- snapshot SHA-256:
 - in scope:
 - out of scope:
+- locked decisions:
+- change rule: lead-approved revision only; workers escalate scope conflicts instead of re-specifying
 
 ## Execution notes
 - repo/workdir:
@@ -28,7 +33,10 @@
 - goal:
 - kickoff_artifact:
 - updated_at:
-- approved_refs:
+- approved_refs: (must include the bound `REQ@revision`)
+- scope_snapshot: (relative JSON path next to this state)
+- scope_revision:
+- scope_snapshot_sha256:
 - scope_summary:
 - evidence_paths:
 - next_action: `launch_runner`

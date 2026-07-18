@@ -50,7 +50,10 @@ The root delivery-state record is the canonical machine-readable status artifact
 
 - `root_type`: `req`, `batch`, or `discovery`; use `discovery` when the kickoff is a confirmed Discovery root that owns a batch queue
 - `discovery_id`: required when `root_type=discovery`
-- `approved_refs`: approved Discovery / REQ references anchoring scope
+- `approved_refs`: approved Discovery / REQ references anchoring scope; a launched root must include its exact bound `REQ@revision`
+- `scope_snapshot`: relative JSON snapshot path next to the root state; required before `lead-launch-runner.sh` can launch
+- `scope_revision`: positive approved revision matching the snapshot; required before launch
+- `scope_snapshot_sha256`: SHA-256 of the exact snapshot bytes; required before launch
 - `scope_summary`: short scope statement for this kickoff
 - `current_handoff_artifact`: currently active impl/QC/escalation/completion artifact path when one exists
 - `blocker_code`: machine-readable blocker code when `status=blocked`
@@ -75,7 +78,7 @@ The root delivery-state record is the canonical machine-readable status artifact
 
 ### State-specific requirements
 
-- `ready`: include `owner_target=delivery-runner`, kickoff references, and enough scope context for claim.
+- `ready`: include `owner_target=delivery-runner`, kickoff references, and enough scope context for claim. Before `lead-launch-runner.sh` starts, it must bind an approved snapshot with matching `scope_snapshot`, `scope_revision`, `scope_snapshot_sha256`, and `approved_refs`; see [Canonical scope governance](scope-governance.md).
 - `running`: include the claimed owner plus `current_stage` and active handoff/evidence trail.
 - `blocked`: include `blocker_code`, human-readable blocker summary, and `next_action`.
 - `done`: include evidence paths and merge/release review hand-back context. For `root_type=discovery`, `done` requires every linked Approved REQ to be `Implemented`, explicitly deferred by lead decision, or represented by a lead-visible escalation/blocked record.

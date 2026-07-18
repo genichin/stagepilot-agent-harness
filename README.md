@@ -18,6 +18,7 @@ This repository standardizes role boundaries, handover contracts, state transiti
 - Keep **implementation** and **QC** as distinct worker roles.
 - Make handovers explicit, reviewable, and reusable.
 - Treat persisted artifacts/state as the canonical operational signals rather than informal chat memory.
+- Bind each launched root delivery to one [approved canonical scope snapshot](docs/scope-governance.md), so workers implement a revision rather than re-specifying requirements from scattered documents.
 - Use a small but explicit root delivery-state record plus typed escalation/completion artifacts so runner status can be read mechanically, not only inferred from prose.
 - Keep docs, templates, SOUL baselines, and Hermes skills under a single source of truth.
 
@@ -59,6 +60,7 @@ Use these as the normative defaults:
 - After `confirm-req`, the lead may auto-kick off delivery unless the user explicitly asked to hold, defer, batch later, or wait.
 - Default root transport is an explicit kickoff artifact plus a small delivery-state record; optional Telegram notification may mirror it for visibility, but notification is not the source of truth.
 - `docs/state-machine.md` is the canonical schema reference for the root delivery-state record and escalation artifact fields.
+- [Canonical scope governance](docs/scope-governance.md) is the single navigation point for approved requirement revisions, decision locks, and lead-approved scope changes. `lead-launch-runner.sh` refuses a root state without a valid snapshot/revision/digest binding before it performs capability or worktree checks.
 - Artifact creation alone does not start execution. The lead explicitly launches `delivery-runner`. The default launcher path prepares an isolated per-kickoff git worktree/branch and starts a detached background `tmux` session. A `fast` kickoff may instead use foreground/current-workdir only for an exclusive local/reversible checkout and only with both `--allow-fast-degraded` and `--ack-fast-shared-workdir-risk`; root state records all selected fallbacks and residual risk.
 - Downstream impl/QC handoffs are transport-agnostic and must not use kanban.
 - Runner-owned impl slicing should normally target work that can show concrete progress evidence within about 5 minutes and is likely to close within about 30 minutes, i.e. roughly half of the default supervised checkpoint/runtime budget.

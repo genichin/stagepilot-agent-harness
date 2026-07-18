@@ -9,10 +9,11 @@ By default, emit this handoff as a persisted kickoff artifact plus a small deliv
 Artifact creation alone does not start execution. The lead must explicitly launch `delivery-runner` after writing the kickoff artifact/state. In this harness the default launch mechanism is the repo wrapper script `scripts/lead-launch-runner.sh`, which starts `hermes --profile delivery-runner` in a detached `tmux` session.
 
 ## Required fields
-
-- approved discovery reference
+Must include:
+- approved Discovery reference
 - approved REQ reference or approved REQ set
-- project / repo path
+- canonical scope snapshot path, exact `REQ@revision`, and snapshot digest
+- objective
 - current goal
 - explicit scope boundaries
 - escalation triggers
@@ -35,7 +36,8 @@ If the handoff is emitted through artifact-backed transport, also set at minimum
 - `owner_target = delivery-runner`
 - `status = ready`
 - `current_stage = kickoff`
-- approved reference list in the state record
+- approved reference list in the state record, including the exact `REQ@revision`
+- `scope_snapshot`, `scope_revision`, and `scope_snapshot_sha256` binding fields
 - `goal`
 - `kickoff_artifact`
 - `updated_at`
