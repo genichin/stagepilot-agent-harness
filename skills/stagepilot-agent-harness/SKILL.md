@@ -1,7 +1,7 @@
 ---
 name: stagepilot-agent-harness
 description: Use when setting up, refining, or operating the StagePilot multi-agent harness with lead, delivery-runner, dev-impl, and dev-qc roles.
-version: 1.0.0
+version: 1.1.0
 author: Hermes Agent
 license: MIT
 metadata:
@@ -126,6 +126,13 @@ Use this decision rule:
 - `references/implementation-worker-hardening.md` — implementation-context artifact, readiness gate, first-progress deadline, and early compaction/read-loop stops for `runner -> dev-impl` execution.
 - `references/supervised-worker-lifecycle.md` — supervised impl/QC background execution, final-result integrity, interrupted supervisor classification, bounded rework autonomy, and machine-checkable acceptance guidance.
 - `references/worker-session-lanes.md` — nuanced runner→impl/QC session policy: fresh first handoff/retry/new batch, artifact-only continuity, and limited same-lane continuation for healthy same-scope follow-up.
+- `../../docs/delivery-health.md` — append-only transition evidence, one-command user health verification, and redacted opt-in harness issue reporting.
+
+## Delivery health handoff
+
+- The runner records `kickoff`, `impl-running`, `targeted-validation`/`qc-review`, and `merge-ready` with `record_delivery_transition.py` when writing the corresponding artifact.
+- The user runs `verify_delivery_trace.py` once after delivery. A failed result creates only a local redacted report draft; GitHub Issue creation requires an explicit `--publish` request.
+- Never include raw worker logs, absolute project paths, credentials, or remote URLs in a harness observation.
 
 
 ### Supervised worker lifecycle integrity
