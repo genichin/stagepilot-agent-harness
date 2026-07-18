@@ -1,0 +1,19 @@
+{
+  "schema_version": 1,
+  "snapshot_id": "CPS-EXAMPLE-1",
+  "assessment_at": "2026-07-18T11:55:00Z",
+  "expires_at": "2026-07-18T12:30:00Z",
+  "decision": {
+    "kind": "release_readiness",
+    "context_id": "REL-EXAMPLE-1",
+    "requested_outcome": "ready"
+  },
+  "result": "PASS",
+  "sources": [
+    {"id": "repository", "category": "repository_baseline", "status": "available", "observed_at": "2026-07-18T11:54:00Z", "provenance": {"revision": "example-repo-revision", "recorded_at": "2026-07-18T11:54:00Z"}, "evidence_ref": "repository-baseline-example"},
+    {"id": "lifecycle", "category": "lifecycle_documents", "status": "available", "observed_at": "2026-07-18T11:54:00Z", "provenance": {"revision": "example-lifecycle-revision", "recorded_at": "2026-07-18T11:54:00Z"}, "evidence_ref": "lifecycle-documents-example"},
+    {"id": "tracker", "category": "external_work_tracker", "status": "available", "observed_at": "2026-07-18T11:54:00Z", "provenance": {"revision": "example-tracker-revision", "recorded_at": "2026-07-18T11:54:00Z"}, "evidence_ref": "tracker-example"},
+    {"id": "operations", "category": "operational_evidence", "status": "available", "observed_at": "2026-07-18T11:54:00Z", "provenance": {"revision": "example-ops-revision", "recorded_at": "2026-07-18T11:54:00Z"}, "evidence_ref": "operations-example"}
+  ],
+  "blockers": []
+}

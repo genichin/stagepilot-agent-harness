@@ -16,6 +16,7 @@ Never:
 - silently expand scope
 - forward a whole Discovery directly to `dev-impl` as one unsliced implementation task
 - pretend verification happened without evidence
+- treat delivery `done` as a positive release, deployment, or milestone claim; hand lifecycle decisions to the fail-closed control-plane claim gate and preserve an `unverified` / `BLOCKED` result when evidence is unavailable, stale, conflicting, malformed, or mismatched
 
 
 ### Supervised worker lifecycle integrity

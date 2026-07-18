@@ -56,6 +56,7 @@ The root delivery-state record is the canonical machine-readable status artifact
 - `scope_snapshot_sha256`: SHA-256 of the exact snapshot bytes; required before launch
 - `scope_summary`: short scope statement for this kickoff
 - `current_handoff_artifact`: currently active impl/QC/escalation/completion artifact path when one exists
+- `lifecycle_claims`: accepted, relative claim artifacts for release/deployment/milestone decisions; each binds the exact control-plane snapshot SHA-256
 - `blocker_code`: machine-readable blocker code when `status=blocked`
 - `blocker_detail`: subtype / precise reason when needed, for example `gh_auth_status_failed`, `push_dry_run_failed`, or `read_loop_no_diff`
 - `evidence_paths`: artifact or evidence paths relevant to the current state
@@ -81,7 +82,7 @@ The root delivery-state record is the canonical machine-readable status artifact
 - `ready`: include `owner_target=delivery-runner`, kickoff references, and enough scope context for claim. Before `lead-launch-runner.sh` starts, it must bind an approved snapshot with matching `scope_snapshot`, `scope_revision`, `scope_snapshot_sha256`, and `approved_refs`; see [Canonical scope governance](scope-governance.md).
 - `running`: include the claimed owner plus `current_stage` and active handoff/evidence trail.
 - `blocked`: include `blocker_code`, human-readable blocker summary, and `next_action`.
-- `done`: include evidence paths and merge/release review hand-back context. For `root_type=discovery`, `done` requires every linked Approved REQ to be `Implemented`, explicitly deferred by lead decision, or represented by a lead-visible escalation/blocked record.
+- `done`: include evidence paths and merge/release review hand-back context. It is a delivery hand-back, not a positive release/deployment/milestone claim. For `root_type=discovery`, `done` requires every linked Approved REQ to be `Implemented`, explicitly deferred by lead decision, or represented by a lead-visible escalation/blocked record.
 - `archived`: include closure reason so terminal historical closure is not confused with successful completion.
 
 ### Normalization rules
@@ -210,6 +211,10 @@ Escalation artifacts are the canonical persisted explanation of why runner execu
 At minimum, `blocked`, `done`, and root-level `archived` should be considered lead-visible state changes.
 
 For runner-owned successful delivery completion, the lead-visible `done` delivery-state transition is mandatory; a separate completion notification/summary is optional unless a project overlay explicitly requires one.
+
+## Lifecycle claim gate
+
+Positive lifecycle claims are limited to `release_readiness`, `release_completion`, `milestone_completion` (including program completion), and `deployment_readiness`. Create them only with `scripts/record_lifecycle_claim.py`; it validates the overlay-declared source snapshot, exact decision kind/context, expiration, and unchanged snapshot digest before atomically writing an accepted claim. The claim binds the snapshot artifact path/ID/timestamps/SHA-256 and redacted source revision summary. If the kind is unsupported or the snapshot is unavailable, stale, conflicting, malformed, or mismatched, the command writes no positive claim: it returns non-zero and, when the safe requested artifact path is unused, writes an immutable `unverified` / `BLOCKED` report with normalized findings. See [Control-plane snapshots](control-plane-snapshots.md).
 
 For root kickoff closure without successful completion, `archived` should be accompanied by a reason in the artifact/state trail so the lead can distinguish superseded/withdrawn history from a completed delivery path.
 

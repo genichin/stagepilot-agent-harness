@@ -1,0 +1,9 @@
+{
+  "schema_version": 1,
+  "sources": [
+    {"id": "repository", "category": "repository_baseline", "required": true, "collector_id": "git-baseline"},
+    {"id": "lifecycle", "category": "lifecycle_documents", "required": true, "collector_id": "lifecycle-docs"},
+    {"id": "tracker", "category": "external_work_tracker", "required": true, "collector_id": "work-tracker"},
+    {"id": "operations", "category": "operational_evidence", "required": true, "collector_id": "operations-evidence"}
+  ]
+}
