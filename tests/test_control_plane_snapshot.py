@@ -102,6 +102,24 @@ class ControlPlaneSnapshotTests(unittest.TestCase):
         self.assertEqual(payload["result"], "BLOCKED")
         self.assertIn("evidence_missing", {item["code"] for item in payload["findings"]})
 
+    def test_overlay_missing_evidence_category_is_blocked(self) -> None:
+        incomplete = overlay()
+        incomplete["sources"].pop()
+        self.write(incomplete, snapshot())
+        result, payload = self.run_validator()
+        self.assertEqual(result.returncode, 1)
+        self.assertIn("control_plane_overlay_invalid", {item["code"] for item in payload["findings"]})
+
+    def test_future_provenance_record_is_blocked(self) -> None:
+        data = snapshot()
+        data["sources"][0]["provenance"]["recorded_at"] = "2026-07-18T12:01:00Z"
+        data["result"] = "BLOCKED"
+        data["blockers"] = [{"code": "evidence_missing", "source_id": "source-1", "summary": "Future provenance is invalid."}]
+        self.write(overlay(), data)
+        result, payload = self.run_validator()
+        self.assertEqual(result.returncode, 1)
+        self.assertIn("evidence_missing", {item["code"] for item in payload["findings"]})
+
     def test_expired_snapshot_is_blocked(self) -> None:
         data = snapshot()
         data["expires_at"] = "2026-07-18T11:59:59Z"

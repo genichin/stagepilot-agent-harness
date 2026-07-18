@@ -18,6 +18,8 @@ Required source categories are:
 - `external_work_tracker`
 - `operational_evidence`
 
+Every overlay must declare at least one required source for each category; a partial overlay is invalid.
+
 The example is in [`examples/control-plane-overlay/`](../examples/control-plane-overlay/).
 
 ## Snapshot v1
@@ -50,7 +52,7 @@ The example is in [`examples/control-plane-overlay/`](../examples/control-plane-
 
 A source record requires a revision, recorded timestamp, observed timestamp, and safe evidence reference. Keep snapshots free of URLs, credentials, absolute paths, and raw logs.
 
-`expires_at` is a deliberate validity boundary. It avoids treating an old successful assessment as a current one. Consumers can additionally assert the requested `--decision-kind` and `--decision-context`.
+`assessment_at`, source observation/provenance timestamps, and `expires_at` are evaluated against the validator clock; future assessment or provenance is invalid, and `expires_at` avoids treating an old successful assessment as current. Consumers can additionally assert the requested `--decision-kind` and `--decision-context`.
 
 ## Fail-closed validation
 
@@ -73,7 +75,7 @@ Only `scripts/record_lifecycle_claim.py` may record these positive lifecycle cla
 - `milestone_completion` (including program completion)
 - `deployment_readiness`
 
-It invokes the read-only validator and requires an exact decision kind/context match, an unexpired `PASS`, and an unchanged snapshot digest. An accepted claim records the requested claim, the snapshot artifact path/ID/timestamps/SHA-256, and the redacted source revision summary. It never promotes a delivery-state `done` transition to a release claim.
+It invokes the read-only validator and requires an exact decision kind/context match, a `PASS` current at the claim writer's system clock, and an unchanged snapshot digest. The claim writer deliberately has no caller-controlled clock override. An accepted claim records the requested claim, the snapshot artifact path/ID/timestamps/SHA-256, and the redacted source revision summary. It never promotes a delivery-state `done` transition to a release claim.
 
 Any unsupported kind or unavailable, stale, conflicting, malformed, or mismatched snapshot exits non-zero and writes a durable `status: unverified`, `result: BLOCKED` report at the requested artifact path when that path is safe and unused. The report contains only the requested claim, snapshot artifact summary, and normalized findings; it has no accepted `claim` field. Existing claim/report artifacts are immutable and are never overwritten.
 

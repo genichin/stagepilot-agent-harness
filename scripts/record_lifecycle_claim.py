@@ -35,8 +35,6 @@ def validation(args: argparse.Namespace) -> dict[str, Any]:
         "--decision-kind", args.claim_kind,
         "--decision-context", args.claim_context,
     ]
-    if args.now:
-        command.extend(["--now", args.now])
     result = subprocess.run(command, text=True, capture_output=True, check=False)
     try:
         payload = json.loads(result.stdout)
@@ -103,7 +101,7 @@ def write_unverified(
         "status": "unverified",
         "result": "BLOCKED",
         "requested_claim": {"kind": args.claim_kind, "context_id": args.claim_context},
-        "recorded_at": args.now or datetime.now(UTC).isoformat().replace("+00:00", "Z"),
+        "recorded_at": datetime.now(UTC).isoformat().replace("+00:00", "Z"),
         "control_plane_snapshot": snapshot_report(snapshot, args.snapshot),
         "findings": findings,
     }
@@ -130,7 +128,6 @@ def main() -> int:
     parser.add_argument("--snapshot", required=True, type=Path)
     parser.add_argument("--claim-kind", required=True)
     parser.add_argument("--claim-context", required=True)
-    parser.add_argument("--now", help="ISO-8601 UTC time for deterministic tests")
     args = parser.parse_args()
 
     target = claim_target(args.delivery_root, args.claim_output)
@@ -159,7 +156,7 @@ def main() -> int:
         "schema_version": 1,
         "status": "accepted",
         "claim": {"kind": args.claim_kind, "context_id": args.claim_context},
-        "recorded_at": args.now or datetime.now(UTC).isoformat().replace("+00:00", "Z"),
+        "recorded_at": datetime.now(UTC).isoformat().replace("+00:00", "Z"),
         "control_plane_snapshot": snapshot_report(snapshot, args.snapshot, snapshot_sha256),
     }
     try:

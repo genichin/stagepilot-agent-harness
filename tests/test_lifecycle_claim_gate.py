@@ -5,11 +5,11 @@ import json
 import subprocess
 import tempfile
 import unittest
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 GATE = ROOT / "scripts" / "record_lifecycle_claim.py"
-NOW = "2026-07-18T12:00:00Z"
 
 
 def overlay() -> dict:
@@ -25,16 +25,20 @@ def overlay() -> dict:
 
 
 def snapshot(kind: str = "release_readiness") -> dict:
+    now = datetime.now(UTC)
+    assessment_at = now - timedelta(minutes=10)
+    observed_at = now - timedelta(minutes=5)
+    expires_at = now + timedelta(minutes=20)
     categories = ["repository_baseline", "lifecycle_documents", "external_work_tracker", "operational_evidence"]
     return {
         "schema_version": 1,
         "snapshot_id": "CPS-42",
-        "assessment_at": "2026-07-18T11:50:00Z",
-        "expires_at": "2026-07-18T12:30:00Z",
+        "assessment_at": assessment_at.isoformat().replace("+00:00", "Z"),
+        "expires_at": expires_at.isoformat().replace("+00:00", "Z"),
         "decision": {"kind": kind, "context_id": "REL-42", "requested_outcome": "ready"},
         "result": "PASS",
         "sources": [
-            {"id": source, "category": category, "status": "available", "observed_at": "2026-07-18T11:55:00Z", "provenance": {"revision": f"REV-{index}", "recorded_at": "2026-07-18T11:55:00Z"}, "evidence_ref": f"EVID-{index}"}
+            {"id": source, "category": category, "status": "available", "observed_at": observed_at.isoformat().replace("+00:00", "Z"), "provenance": {"revision": f"REV-{index}", "recorded_at": observed_at.isoformat().replace("+00:00", "Z")}, "evidence_ref": f"EVID-{index}"}
             for index, (source, category) in enumerate(zip(("repository", "lifecycle", "tracker", "operations"), categories), start=1)
         ],
         "blockers": [],
@@ -60,7 +64,7 @@ class LifecycleClaimGateTests(unittest.TestCase):
 
     def run_gate(self, *extra: str) -> tuple[subprocess.CompletedProcess[str], dict]:
         result = subprocess.run(
-            ["python3", str(GATE), "--delivery-root", str(self.delivery_root), "--claim-output", "claims/REL-42.json", "--overlay", str(self.overlay_path), "--snapshot", str(self.snapshot_path), "--claim-kind", "release_readiness", "--claim-context", "REL-42", "--now", NOW, *extra],
+            ["python3", str(GATE), "--delivery-root", str(self.delivery_root), "--claim-output", "claims/REL-42.json", "--overlay", str(self.overlay_path), "--snapshot", str(self.snapshot_path), "--claim-kind", "release_readiness", "--claim-context", "REL-42", *extra],
             text=True,
             capture_output=True,
             check=False,
@@ -98,9 +102,40 @@ class LifecycleClaimGateTests(unittest.TestCase):
         self.assertEqual(payload["status"], "unverified")
         self.assertIn("unsupported_claim_kind", {item["code"] for item in payload["findings"]})
 
+    def test_caller_cannot_backdate_claim_clock(self) -> None:
+        result = subprocess.run(
+            ["python3", str(GATE), "--delivery-root", str(self.delivery_root), "--claim-output", "claims/backdated.json", "--overlay", str(self.overlay_path), "--snapshot", str(self.snapshot_path), "--claim-kind", "release_readiness", "--claim-context", "REL-42", "--now", "2025-01-01T00:00:00Z"],
+            text=True,
+            capture_output=True,
+            check=False,
+        )
+        self.assertEqual(result.returncode, 2)
+        self.assertIn("unrecognized arguments", result.stderr)
+        self.assertFalse((self.delivery_root / "claims" / "backdated.json").exists())
+
+    def test_overlay_missing_required_category_cannot_write_positive_claim(self) -> None:
+        incomplete = overlay()
+        incomplete["sources"].pop()
+        self.overlay_path.write_text(json.dumps(incomplete), encoding="utf-8")
+        result, payload = self.run_gate()
+        self.assertEqual(result.returncode, 1)
+        self.assertFalse(payload["claim_written"])
+        self.assertIn("control_plane_overlay_invalid", {item["code"] for item in payload["findings"]})
+
+    def test_future_assessment_cannot_write_positive_claim(self) -> None:
+        data = snapshot()
+        future = datetime.now(UTC) + timedelta(minutes=5)
+        data["assessment_at"] = future.isoformat().replace("+00:00", "Z")
+        data["expires_at"] = (future + timedelta(minutes=20)).isoformat().replace("+00:00", "Z")
+        self.write(data)
+        result, payload = self.run_gate()
+        self.assertEqual(result.returncode, 1)
+        self.assertFalse(payload["claim_written"])
+        self.assertIn("baseline_stale_or_unknown", {item["code"] for item in payload["findings"]})
+
     def test_expired_snapshot_cannot_write_positive_claim(self) -> None:
         data = snapshot()
-        data["expires_at"] = "2026-07-18T11:59:59Z"
+        data["expires_at"] = (datetime.now(UTC) - timedelta(seconds=1)).isoformat().replace("+00:00", "Z")
         self.write(data)
         result, payload = self.run_gate()
         self.assertEqual(result.returncode, 1)
@@ -161,7 +196,7 @@ class LifecycleClaimGateTests(unittest.TestCase):
 
     def test_unverified_report_is_not_overwritten_by_later_positive_claim(self) -> None:
         data = snapshot()
-        data["expires_at"] = "2026-07-18T11:59:59Z"
+        data["expires_at"] = (datetime.now(UTC) - timedelta(seconds=1)).isoformat().replace("+00:00", "Z")
         self.write(data)
         initial, _ = self.run_gate()
         initial_report = (self.delivery_root / "claims" / "REL-42.json").read_text(encoding="utf-8")

@@ -87,6 +87,9 @@ def overlay_sources(overlay: dict[str, Any], findings: list[dict[str, str]]) -> 
             add(findings, "control_plane_overlay_invalid", "sources")
             continue
         sources[source_id] = source
+    required_categories = {source["category"] for source in sources.values() if source["required"]}
+    if required_categories != CATEGORIES:
+        add(findings, "control_plane_overlay_invalid", "sources")
     return sources
 
 
@@ -97,7 +100,9 @@ def validate_snapshot(snapshot: dict[str, Any], declared: dict[str, dict[str, An
         add(findings, "control_plane_snapshot_invalid", "snapshot_id")
     assessment_at = parse_time(snapshot.get("assessment_at"))
     expires_at = parse_time(snapshot.get("expires_at"))
-    if assessment_at is None or expires_at is None or expires_at <= assessment_at or expires_at <= now:
+    if assessment_at is None or assessment_at > now:
+        add(findings, "baseline_stale_or_unknown", "assessment_at")
+    if expires_at is None or (assessment_at is not None and expires_at <= assessment_at) or (expires_at is not None and expires_at <= now):
         add(findings, "baseline_stale_or_unknown", "expires_at")
 
     decision = snapshot.get("decision")
@@ -141,7 +146,8 @@ def validate_snapshot(snapshot: dict[str, Any], declared: dict[str, dict[str, An
         if observed_at is None or observed_at > now:
             add(findings, "baseline_stale_or_unknown", source_id)
         provenance = source.get("provenance")
-        if not isinstance(provenance, dict) or not safe_text(provenance.get("revision")) or parse_time(provenance.get("recorded_at")) is None:
+        recorded_at = parse_time(provenance.get("recorded_at")) if isinstance(provenance, dict) else None
+        if not isinstance(provenance, dict) or not safe_text(provenance.get("revision")) or recorded_at is None or recorded_at > now:
             add(findings, "evidence_missing", source_id)
         if not safe_text(source.get("evidence_ref")):
             add(findings, "evidence_missing", source_id)

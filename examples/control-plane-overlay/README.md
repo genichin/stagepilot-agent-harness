@@ -22,10 +22,9 @@ python3 scripts/record_lifecycle_claim.py \
   --overlay examples/control-plane-overlay/control-plane-overlay.json \
   --snapshot examples/control-plane-overlay/snapshot.json \
   --claim-kind release_readiness \
-  --claim-context REL-EXAMPLE-1 \
-  --now 2026-07-18T12:00:00Z
+  --claim-context REL-EXAMPLE-1
 ```
 
-Without a current matching `PASS`, this writes only an `unverified` / `BLOCKED` report and exits non-zero; it never emits a positive claim.
+The claim gate always uses the system clock; it deliberately does not provide a caller-controlled freshness override. Without a current matching `PASS`, this writes only an `unverified` / `BLOCKED` report and exits non-zero; it never emits a positive claim.
 
 See [`docs/control-plane-snapshots.md`](../../docs/control-plane-snapshots.md) for the artifact contract and safe Markdown rendering convention.
