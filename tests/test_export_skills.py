@@ -83,7 +83,8 @@ metadata:
 
         self.assertEqual(result.returncode, 0, msg=result.stdout)
         manifest = json.loads((self.dest / 'catalog-manifest.json').read_text(encoding='utf-8'))
-        self.assertEqual(manifest['schema_version'], 1)
+        self.assertEqual(manifest['schema_version'], 2)
+        self.assertEqual(len(manifest['catalog_sha256']), 64)
         self.assertEqual(manifest['skills'][0]['name'], 'alpha')
         self.assertTrue((self.dest / 'alpha' / 'SKILL.md').is_file())
 
@@ -91,6 +92,13 @@ metadata:
         self.assertEqual(parity.returncode, 0, msg=parity.stdout)
         self.assertTrue(json.loads(parity.stdout)['valid'])
 
+        manifest['catalog_sha256'] = '0' * 64
+        (self.dest / 'catalog-manifest.json').write_text(json.dumps(manifest), encoding='utf-8')
+        parity = self.run_parity()
+        self.assertEqual(parity.returncode, 1)
+        self.assertIn('manifest provenance mismatch for catalog_sha256', json.loads(parity.stdout)['errors'])
+
+        self.assertEqual(self.run_export().returncode, 0)
         (self.dest / 'alpha' / 'SKILL.md').write_text('tampered', encoding='utf-8')
         parity = self.run_parity()
         self.assertEqual(parity.returncode, 1)

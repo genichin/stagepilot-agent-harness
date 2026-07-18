@@ -60,6 +60,9 @@ def verify_runtime_skill_sync(source: Path, dest: Path) -> dict[str, Any]:
                 modified.append(name)
 
     if actual_manifest is not None:
+        for field in ('schema_version', 'catalog_version', 'catalog_sha256', 'hash_algorithm', 'source_revision'):
+            if actual_manifest.get(field) != expected_manifest[field]:
+                errors.append(f'manifest provenance mismatch for {field}')
         manifest_skills = {item.get('name'): item for item in actual_manifest['skills'] if isinstance(item, dict)}
         for name, item in expected.items():
             if manifest_skills.get(name) != item:

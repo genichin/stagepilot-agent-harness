@@ -110,17 +110,11 @@ Policy going forward:
 - audit/governance notes belong in `docs/skill-audit.md`;
 - pack-level history should be recorded at repository level rather than mixed into the runtime skill directory.
 
-## Missing skill opportunities
+## Operational coverage status
 
-The current catalog still has meaningful gaps around operational tooling that already exists in `stage-pilot/tools/` or is implied by the workflow.
+`stagepilot-bootstrap-seed-ops` is now present in the canonical catalog. It documents when to seed, how to provide seed inputs, and how to validate generated baseline YAML and documentation. Bootstrap profile lifecycle safety is covered by `scripts/bootstrap_profiles.py` and its fixture-based regression suite.
 
-### Highest remaining additions
-
-| Proposed skill | Why it is needed | Grounding |
-|---|---|---|
-| `stagepilot-bootstrap-seed-ops` | Bootstrap seed generation already exists as a script, but there is still no dedicated skill that explains when to seed, how to answer prompts, and how to validate the resulting baseline YAML plus generated docs. | `stage-pilot/tools/stagepilot-bootstrap-seed.py`; referenced from `bootstrap-baseline` and `stage-pilot/README.md` |
-
-### Lower-priority additions
+## Lower-priority future additions
 
 | Proposed skill | Why it may help |
 |---|---|

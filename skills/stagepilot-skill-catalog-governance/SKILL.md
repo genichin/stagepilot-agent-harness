@@ -1,7 +1,7 @@
 ---
 name: stagepilot-skill-catalog-governance
 description: Use when adding, importing, changing, versioning, deprecating, exporting, auditing, or reviewing StagePilot harness skills and their catalog governance artifacts.
-version: 1.0.0
+version: 1.1.0
 author: Hermes Agent
 license: MIT
 metadata:
@@ -34,12 +34,14 @@ metadata:
    python3 -m pip install -r requirements.txt
    ```
 
-6. Validate before export:
+6. Validate source, contract coherence, and range provenance before export:
 
    ```bash
    python3 scripts/validate_skill_catalog.py --root . --format json
-   python3 scripts/verify_structure.py
+   GIT_BASE="$(git merge-base origin/main HEAD)" GIT_HEAD=HEAD bash scripts/check_quality.sh
    ```
+
+   The range gate requires declared dependents for changed authority sources and version increments for changed skills; use only an expiring reviewed `sync-contract.yaml` exception when a co-change is intentionally deferred.
 
 7. Record only validated release/export evidence. Do not record credentials, remote URLs, or auth-home paths.
 

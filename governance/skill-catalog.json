@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "catalog": {
-    "version": "1.1.0",
+    "version": "1.2.0",
     "owner": "stagepilot-catalog-maintainer",
     "reviewer": "stagepilot-governance-reviewer"
   },
@@ -30,7 +30,7 @@
     "stagepilot-bootstrap-seed-ops": {"version": "1.0.0", "lifecycle": "active", "owner": "stagepilot-operating-model-maintainer", "reviewer": "stagepilot-governance-reviewer"},
     "stagepilot-doctor-ops": {"version": "1.0.0", "lifecycle": "active", "owner": "stagepilot-runtime-maintainer", "reviewer": "stagepilot-governance-reviewer"},
     "stagepilot-handoffs": {"version": "1.0.0", "lifecycle": "active", "owner": "stagepilot-operating-model-maintainer", "reviewer": "stagepilot-governance-reviewer"},
-    "stagepilot-skill-catalog-governance": {"version": "1.0.0", "lifecycle": "active", "owner": "stagepilot-catalog-maintainer", "reviewer": "stagepilot-governance-reviewer"},
+    "stagepilot-skill-catalog-governance": {"version": "1.1.0", "lifecycle": "active", "owner": "stagepilot-catalog-maintainer", "reviewer": "stagepilot-governance-reviewer"},
     "stagepilot-role-topology": {"version": "1.0.0", "lifecycle": "active", "owner": "stagepilot-operating-model-maintainer", "reviewer": "stagepilot-governance-reviewer"},
     "suggest-batch-reqs": {"version": "0.8.2", "lifecycle": "active", "owner": "stagepilot-workflow-maintainer", "reviewer": "stagepilot-governance-reviewer"},
     "suggest-next-discovery": {"version": "0.6.0", "lifecycle": "active", "owner": "stagepilot-workflow-maintainer", "reviewer": "stagepilot-governance-reviewer"}

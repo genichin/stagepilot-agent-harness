@@ -1,0 +1,50 @@
+schema_version: 1
+contracts:
+  - id: role-topology
+    owner: stagepilot-operating-model-maintainer
+    reviewer: stagepilot-governance-reviewer
+    sources:
+      - roles/**
+      - profiles/templates/*.SOUL.md
+      - docs/delivery-profiles.md
+    dependents:
+      - skills/stagepilot-role-topology/**
+      - skills/stagepilot-agent-harness/**
+  - id: handoff-contracts
+    owner: stagepilot-operating-model-maintainer
+    reviewer: stagepilot-governance-reviewer
+    sources:
+      - handoffs/**
+      - templates/kickoff.md
+    dependents:
+      - skills/stagepilot-handoffs/**
+      - skills/stagepilot-agent-harness/**
+  - id: profile-bootstrap
+    owner: stagepilot-operating-model-maintainer
+    reviewer: stagepilot-governance-reviewer
+    sources:
+      - scripts/bootstrap_profiles.py
+      - docs/profile-bootstrap.md
+    dependents:
+      - skills/stagepilot-bootstrap-seed-ops/**
+      - tests/test_bootstrap_profiles.py
+  - id: skill-export-runtime-parity
+    owner: stagepilot-runtime-maintainer
+    reviewer: stagepilot-governance-reviewer
+    sources:
+      - scripts/export_skills.py
+      - scripts/verify_runtime_skill_sync.py
+      - docs/skills.md
+    dependents:
+      - skills/stagepilot-skill-catalog-governance/**
+      - tests/test_export_skills.py
+  - id: evidence-operations
+    owner: stagepilot-runtime-maintainer
+    reviewer: stagepilot-governance-reviewer
+    sources:
+      - scripts/reconcile_evidence.py
+      - docs/evidence-retention.md
+    dependents:
+      - skills/stagepilot-skill-catalog-governance/**
+      - tests/test_reconcile_evidence.py
+exceptions: []

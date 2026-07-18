@@ -53,6 +53,10 @@ def source_revision(root: Path) -> str:
     return result.stdout.strip() if result.returncode == 0 else 'redacted-unavailable'
 
 
+def catalog_sha256(root: Path) -> str:
+    return hashlib.sha256((root / 'governance' / 'skill-catalog.json').read_bytes()).hexdigest()
+
+
 def build_manifest(root: Path) -> dict[str, Any]:
     manifest_path = root / 'governance' / 'skill-catalog.json'
     catalog = json.loads(manifest_path.read_text(encoding='utf-8'))
@@ -64,8 +68,9 @@ def build_manifest(root: Path) -> dict[str, Any]:
             'sha256': skill_sha256(root / 'skills' / name),
         })
     return {
-        'schema_version': 1,
+        'schema_version': 2,
         'catalog_version': catalog['catalog']['version'],
+        'catalog_sha256': catalog_sha256(root),
         'hash_algorithm': 'sha256',
         'source_revision': source_revision(root),
         'generated_at': datetime.now(UTC).isoformat().replace('+00:00', 'Z'),

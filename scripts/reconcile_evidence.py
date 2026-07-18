@@ -45,6 +45,19 @@ def reconcile(evidence: Path, catalog_sha256: str, now: datetime, stale_seconds:
             findings.append({'class': 'missing-supervisor-result', 'path': str(evidence), 'action': 'escalate'})
         if state.get('catalog_sha256') and state['catalog_sha256'] != catalog_sha256:
             findings.append({'class': 'obsolete-runtime-catalog', 'path': str(state_path), 'action': 'refresh'})
+    release = evidence / 'release-evidence.json'
+    if not release.is_file():
+        findings.append({'class': 'missing-release-evidence', 'path': str(release), 'action': 'record'})
+    else:
+        try:
+            record = load(release)
+            required = ('source_revision', 'catalog_version', 'catalog_sha256', 'export_manifest_sha256', 'verifier_version', 'recorded_at')
+            if any(not isinstance(record.get(field), str) or not record[field] for field in required):
+                findings.append({'class': 'invalid-release-provenance', 'path': str(release), 'action': 'escalate'})
+            elif record['catalog_sha256'] != catalog_sha256:
+                findings.append({'class': 'obsolete-release-provenance', 'path': str(release), 'action': 'refresh'})
+        except (OSError, ValueError, json.JSONDecodeError):
+            findings.append({'class': 'invalid-release-provenance', 'path': str(release), 'action': 'escalate'})
     for lock in sorted((evidence / 'locks').glob('*.lock')) if (evidence / 'locks').is_dir() else []:
         try:
             age = (now - when(load(lock)['updated_at'])).total_seconds()

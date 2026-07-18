@@ -10,4 +10,12 @@ bash -n scripts/*.sh
 python3 scripts/validate_skill_catalog.py --root . --format json
 python3 scripts/verify_structure.py
 python3 -m unittest discover -s tests -p 'test_*.py'
-git diff --check
+
+if [[ -n "${GIT_BASE:-}" && -n "${GIT_HEAD:-}" ]]; then
+  git cat-file -e "${GIT_BASE}^{commit}"
+  git cat-file -e "${GIT_HEAD}^{commit}"
+  python3 scripts/validate_governance_sync.py --root . --base "$GIT_BASE" --head "$GIT_HEAD" --format json
+  git diff --check "$GIT_BASE...$GIT_HEAD"
+else
+  git diff --check
+fi

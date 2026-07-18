@@ -25,7 +25,16 @@ class ReconcileEvidenceTests(unittest.TestCase):
 
     def archive(self, contents: bytes = b'evidence') -> None:
         artifact = self.evidence / 'result.json'; artifact.write_bytes(contents)
-        self.evidence.joinpath('archive-manifest.json').write_text(json.dumps({'files': [{'path': 'result.json', 'sha256': hashlib.sha256(contents).hexdigest()}]}))
+        release = self.evidence / 'release-evidence.json'
+        release.write_text(json.dumps({
+            'source_revision': 'fixture', 'catalog_version': '1.0.0',
+            'catalog_sha256': hashlib.sha256(CATALOG.read_bytes()).hexdigest(),
+            'export_manifest_sha256': 'fixture', 'verifier_version': 'fixture', 'recorded_at': NOW,
+        }), encoding='utf-8')
+        self.evidence.joinpath('archive-manifest.json').write_text(json.dumps({'files': [
+            {'path': 'result.json', 'sha256': hashlib.sha256(contents).hexdigest()},
+            {'path': 'release-evidence.json', 'sha256': hashlib.sha256(release.read_bytes()).hexdigest()},
+        ]}))
 
     def reconcile_cmd(self) -> subprocess.CompletedProcess[str]:
         return subprocess.run(['python3', str(SCRIPT), '--evidence-dir', str(self.evidence), '--catalog', str(CATALOG), '--now', NOW], text=True, capture_output=True)
@@ -47,6 +56,11 @@ class ReconcileEvidenceTests(unittest.TestCase):
         state = json.loads((self.evidence / 'state.json').read_text()); state['catalog_sha256'] = '0' * 64; (self.evidence / 'state.json').write_text(json.dumps(state))
         result = self.reconcile_cmd(); classes = {f['class'] for f in json.loads(result.stdout)['findings']}
         self.assertEqual(result.returncode, 1); self.assertTrue({'archive-checksum-mismatch', 'obsolete-runtime-catalog'} <= classes)
+
+    def test_detects_missing_release_evidence(self) -> None:
+        self.archive(); (self.evidence / 'release-evidence.json').unlink()
+        result = self.reconcile_cmd(); classes = {f['class'] for f in json.loads(result.stdout)['findings']}
+        self.assertEqual(result.returncode, 1); self.assertIn('missing-release-evidence', classes)
 
 
 if __name__ == '__main__': unittest.main()

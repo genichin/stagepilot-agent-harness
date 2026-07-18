@@ -37,7 +37,16 @@ The repository is the source of truth.
 
 - `docs/`, `roles/`, `handoffs/`, `templates/`, and `playbooks/` define the human operating model.
 - `skills/` translates that model into Hermes-executable instructions.
+- `governance/sync-contract.yaml` declares source-to-dependent co-change contracts; `scripts/validate_governance_sync.py` enforces them for reviewed Git ranges.
 - Project-specific deviations belong in `projects/<name>/`, not inside core role definitions unless the rule is truly global.
+
+The local quality gate remains useful without a Git range. In CI, pass an explicit reviewed range to enforce contracts and version provenance:
+
+```bash
+GIT_BASE="$(git merge-base origin/main HEAD)" GIT_HEAD=HEAD bash scripts/check_quality.sh
+```
+
+An exception must be an expiring, reviewed entry in `governance/sync-contract.yaml`; it must not be a permanent comment or a bypass of runtime target safety.
 
 ## Installation flow
 
