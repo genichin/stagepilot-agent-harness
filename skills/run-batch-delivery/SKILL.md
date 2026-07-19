@@ -1,7 +1,7 @@
 ---
 name: run-batch-delivery
 description: "Use when: orchestrating the full delivery chain for an existing batch, running /run-batch-delivery with a BAT ID, resuming an in-progress batch from the first incomplete delivery stage, or chaining planning, design, implementation, verification drafting, verification approval, and REQ implementation sync for one selected batch."
-version: 0.7.1
+version: 0.7.2
 author: Justin Ko
 license: private
 argument-hint: "예: bat-002 또는 docs/batches/bat-002_20260522_visioncfg-32-contract-migration"
@@ -105,6 +105,7 @@ This skill orchestrates the Delivery phase for one already-created batch by chai
 - 동일 acceptance scope에 대한 QC verdict는 최대 3회(초기 QC 1회 + 재작업 후 재검토 2회)까지만 허용한다.
 - 같은 QC gap이 3번째 verdict에서도 unresolved이면 `delivery-runner -> lead` escalation을 강제하고, impl↔QC 루프를 계속 돌리지 않는다.
 - REQ ambiguity, conflicting acceptance criteria, scope mismatch, release-risk posture, 또는 runner authority 밖 판단이 원인이면 retry budget을 쓰지 말고 즉시 escalation한다.
+- harness runtime을 사용할 수 있는 `standard`/`guarded` delivery에서는 `scripts/run_qc_rework_loop.py`로 QC FAIL → fresh impl rework → required validation → fresh QC를 실행한다. 임의 launcher 재호출로 verdict count, canonical QC verdict artifact, fresh review, terminal escalation을 우회하지 않는다.
 - REQ acceptance criteria와 evidence 연결이 불충분하면 `confirm-req-implemented`에서 멈춘다.
 - release 문서 생성과 release 승인까지 자동으로 넘기지 않는다. 이 skill의 종료점은 delivery phase 완료 직전 또는 완료 직후 상태 보고다.
 
@@ -132,8 +133,8 @@ This skill orchestrates the Delivery phase for one already-created batch by chai
 8. `run-batch-implementation` 후에는 구현 변경, execution log, validation, remaining risks가 기록됐는지 확인한다.
 8. `draft-batch-verification` 후에는 REQ acceptance criteria와 evidence mapping, blocking issues, baseline 동기화 evidence가 필요한 경우 그 항목이 채워졌는지 확인한다.
 9. 기본 경로라면 `confirm-batch-verification` 전에 `delivery-runner -> dev-qc` handoff를 수행하고 QC verdict를 반영한다. 단일 저위험 `batch-lite` 예외만 QC 생략 사유와 residual risk를 남긴 뒤 다음 단계로 간다.
-10. QC가 gap을 반환하면 먼저 원인을 `implementation defect` / `evidence gap` / `REQ ambiguity or governance issue`로 분류한다. 구현 결함과 evidence gap만 재작업 대상으로 돌리고, governance/REQ 문제는 즉시 `lead`로 escalate한다.
-11. 같은 acceptance scope의 QC verdict가 3번째에도 실패하면 `Stopped at verification` + mandatory escalation으로 보고하고, 추가 재작업 루프를 계속하지 않는다.
+10. QC가 gap을 반환하면 먼저 원인을 `implementation defect` / `evidence gap` / `REQ ambiguity or governance issue`로 분류한다. harness runtime이 있는 `standard`/`guarded` delivery이면 `scripts/run_qc_rework_loop.py`에 acceptance scope, impl handoff/context, QC handoff, validation command를 제공해 loop를 실행한다. 구현 결함과 evidence gap만 재작업 대상으로 돌리고, governance/REQ 문제는 즉시 `lead`로 escalate한다.
+11. controller가 terminal PASS 또는 blocked 상태를 state에 기록할 때까지 기다리고, 같은 acceptance scope의 QC verdict가 3번째에도 실패하면 `Stopped at verification` + mandatory escalation으로 보고한다. 추가 재작업 루프를 직접 실행하지 않는다.
 12. `confirm-batch-verification` 성공 시 batch가 `release-candidate`로 전환됐는지 확인한다. 실패 시 blocker를 보고하고 멈춘다.
 13. `confirm-req-implemented`를 실행해 포함 REQ 중 evidence가 충분한 항목만 `Implemented`로 동기화한다. 부족한 항목은 blocker와 함께 남긴다.
 14. delivery chain 종료 후 결과를 아래 중 하나로 보고한다.

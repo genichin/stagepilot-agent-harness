@@ -334,7 +334,7 @@ run_supervised() {
     --max-minutes "$max_minutes"
     --first-progress-minutes "$first_progress_minutes"
     --
-    hermes --profile dev-impl chat -q "$prompt"
+    env "HERMES_CWD=$worktree_root" "TERMINAL_CWD=$worktree_root" hermes --profile dev-impl chat -q "$prompt"
   )
 
   if [[ $background -eq 0 ]]; then
@@ -399,7 +399,7 @@ if [[ $background -eq 0 ]]; then
   echo "impl_handoff_artifact: $handoff_reference"
   echo "delivery_state: $delivery_state"
   echo "progress_artifact: $progress_artifact"
-  exec hermes --profile dev-impl chat -q "$prompt"
+  exec env "HERMES_CWD=$worktree_root" "TERMINAL_CWD=$worktree_root" hermes --profile dev-impl chat -q "$prompt"
 fi
 
 command -v tmux >/dev/null 2>&1 || { echo "error: tmux not found in PATH" >&2; exit 1; }
@@ -409,7 +409,7 @@ if [[ -z "$session_name" ]]; then
 fi
 log_file="$worktree_root/.stagepilot/worker-logs/${session_name}.log"
 exit_file="$worktree_root/.stagepilot/worker-logs/${session_name}.exit"
-run_script=$(printf 'hermes --profile dev-impl chat -q %q > %q 2>&1; status=$?; printf "%%s\\n" "$status" > %q' "$prompt" "$log_file" "$exit_file")
+run_script=$(printf 'env HERMES_CWD=%q TERMINAL_CWD=%q hermes --profile dev-impl chat -q %q > %q 2>&1; status=$?; printf "%%s\\n" "$status" > %q' "$worktree_root" "$worktree_root" "$prompt" "$log_file" "$exit_file")
 tmux new-session -d -s "$session_name" "bash -lc $(printf '%q' "$run_script")"
 
 echo "started: true"

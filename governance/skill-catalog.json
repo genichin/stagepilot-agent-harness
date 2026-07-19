@@ -22,7 +22,7 @@
     "draft-req": {"version": "1.0.4", "lifecycle": "active", "owner": "stagepilot-workflow-maintainer", "reviewer": "stagepilot-governance-reviewer"},
     "new-discovery": {"version": "1.0.2", "lifecycle": "active", "owner": "stagepilot-workflow-maintainer", "reviewer": "stagepilot-governance-reviewer"},
     "review-discovery": {"version": "0.8.0", "lifecycle": "active", "owner": "stagepilot-workflow-maintainer", "reviewer": "stagepilot-governance-reviewer"},
-    "run-batch-delivery": {"version": "0.7.1", "lifecycle": "active", "owner": "stagepilot-workflow-maintainer", "reviewer": "stagepilot-governance-reviewer"},
+    "run-batch-delivery": {"version": "0.7.2", "lifecycle": "active", "owner": "stagepilot-workflow-maintainer", "reviewer": "stagepilot-governance-reviewer"},
     "run-batch-implementation": {"version": "0.7.2", "lifecycle": "active", "owner": "stagepilot-workflow-maintainer", "reviewer": "stagepilot-governance-reviewer"},
     "run-discovery-delivery": {"version": "0.1.0", "lifecycle": "active", "owner": "stagepilot-workflow-maintainer", "reviewer": "stagepilot-governance-reviewer"},
     "run-sdlc": {"version": "0.7.0", "lifecycle": "active", "owner": "stagepilot-workflow-maintainer", "reviewer": "stagepilot-governance-reviewer"},

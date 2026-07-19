@@ -22,6 +22,13 @@
    - notification targets
    - examples
 
+4. **Detached-runner supervision control plane**
+   - the root delivery-state remains the lifecycle source of truth
+   - `lead-launch-runner.sh` creates a versioned manifest with trusted-artifact-root-relative paths
+   - `watch_runner_terminal.py` reconciles detached tmux exit with root state and runner artifacts, writes sequenced append-only events, and fails closed on integrity gaps
+   - notification adapters consume structured JSON events over stdin; the cursor claims event IDs before dispatch for local at-most-once delivery
+   - the QC rework controller owns a delivery-state-scoped lock and records each fresh QC artifact/count before evaluating or escalating it
+
 ## Design principles
 
 - Shared worker roles by default; project-specific lead overlays when needed.

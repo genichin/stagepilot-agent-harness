@@ -15,7 +15,14 @@ SUPERVISE = ROOT / 'scripts' / 'supervise_worker.py'
 
 
 class SupervisedLauncherPathResolutionTest(unittest.TestCase):
-    def run_launcher(self, launcher: Path, handoff_name: str, extra_args: list[str] | None = None) -> dict:
+    def run_launcher(
+        self,
+        launcher: Path,
+        handoff_name: str,
+        extra_args: list[str] | None = None,
+        *,
+        with_verdict_output: bool = False,
+    ) -> dict:
         with tempfile.TemporaryDirectory() as tmp:
             tmp_path = Path(tmp)
             project = tmp_path / 'project'
@@ -46,6 +53,9 @@ class SupervisedLauncherPathResolutionTest(unittest.TestCase):
                 encoding='utf-8',
             )
             state.write_text('{}\n', encoding='utf-8')
+            verdict_output = delivery_dir / 'qc-verdict.json'
+            if with_verdict_output:
+                verdict_output.write_text('{"controller_template": true}\n', encoding='utf-8')
 
             python_stub = bin_dir / 'python3'
             python_stub.write_text(
@@ -67,7 +77,10 @@ class SupervisedLauncherPathResolutionTest(unittest.TestCase):
             env['PATH'] = f"{bin_dir}:{env['PATH']}"
             env['CAPTURE_FILE'] = str(capture_file)
 
-            launch_args = [str(launcher), '--supervised', '--foreground-supervised', *(extra_args or []), str(handoff), str(state)]
+            launch_args = [str(launcher), '--supervised', '--foreground-supervised', *(extra_args or [])]
+            if with_verdict_output:
+                launch_args.extend(['--verdict-output', str(verdict_output)])
+            launch_args.extend([str(handoff), str(state)])
             result = subprocess.run(
                 launch_args,
                 cwd=project,
@@ -84,6 +97,7 @@ class SupervisedLauncherPathResolutionTest(unittest.TestCase):
                 'stdout': result.stdout,
                 'project': str(project),
                 'progress_path': str(progress_path),
+                'verdict_output': str(verdict_output),
             }
 
     def assert_common(
@@ -111,6 +125,12 @@ class SupervisedLauncherPathResolutionTest(unittest.TestCase):
             self.assertIn('preset: default', observed['stdout'])
         self.assertIn('checkpoint_minutes: 10', observed['stdout'])
         self.assertIn('max_minutes: 60', observed['stdout'])
+        if profile in {'dev-impl', 'dev-qc'}:
+            self.assertIn('env', argv)
+            env_index = argv.index('env')
+            self.assertEqual(argv[env_index + 1], f'HERMES_CWD={project}')
+            self.assertEqual(argv[env_index + 2], f'TERMINAL_CWD={project}')
+            self.assertEqual(argv[env_index + 3], 'hermes')
         if profile == 'dev-impl':
             self.assertIn('first_progress_minutes: 2', observed['stdout'])
             self.assertIn('readiness_gate: 1', observed['stdout'])
@@ -370,6 +390,13 @@ class SupervisedLauncherPathResolutionTest(unittest.TestCase):
     def test_qc_supervised_launcher_uses_harness_helper_and_target_worktree(self) -> None:
         observed = self.run_launcher(QC, 'qc-handoff.md')
         self.assert_common(observed, label='qc', profile='dev-qc', handoff_name='qc-handoff.md', expect_preset=False)
+
+    def test_qc_supervised_launcher_includes_controller_verdict_contract(self) -> None:
+        observed = self.run_launcher(QC, 'qc-handoff.md', with_verdict_output=True)
+        prompt = observed['argv'][-1]
+        self.assertIn(observed['verdict_output'], prompt)
+        self.assertIn('bounded same-scope rework loop', prompt)
+        self.assertIn('missing or', prompt)
 
 
 if __name__ == '__main__':

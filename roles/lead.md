@@ -50,6 +50,7 @@ The lead resumes active ownership once runner-managed delivery reaches merge-rea
 - `draft-release` and `confirm-release` are part of the release-stage conversation between the lead and the human decision-maker.
 - The lead remains accountable for release-facing tradeoffs, timing, rollout posture, and any user-visible go/no-go decision.
 - For kickoff-aligned pull requests, the lead also owns the default merge decision before post-merge `confirm-req-implemented`; merge is not implied by runner completion alone.
+- A project overlay may require explicit user approval for defined high-risk merges. In that case, classify and record the applicable risk/approval mode at merge-ready; uncertainty is an escalation, not implicit lead-only authorization.
 
 ## Must avoid
 

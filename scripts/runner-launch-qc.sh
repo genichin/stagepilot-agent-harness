@@ -4,7 +4,7 @@ set -euo pipefail
 usage() {
   cat <<'EOF'
 Usage:
-  scripts/runner-launch-qc.sh [--delivery-profile NAME] [--supervised] [--checkpoint-minutes N] [--max-minutes N] [--first-progress-minutes N] [--progress-artifact PATH] [--background] [--foreground-supervised] [--session-name NAME] <qc_handoff_artifact> <delivery_state>
+  scripts/runner-launch-qc.sh [--delivery-profile NAME] [--supervised] [--checkpoint-minutes N] [--max-minutes N] [--first-progress-minutes N] [--progress-artifact PATH] [--verdict-output PATH] [--background] [--foreground-supervised] [--session-name NAME] <qc_handoff_artifact> <delivery_state>
 
 Default:
   Unsupervised calls run foreground using Hermes profile `dev-qc`; supervised calls run detached/background unless --foreground-supervised is set.
@@ -16,6 +16,7 @@ Options:
   --max-minutes N          Supervised hard runtime cap in minutes (default: 60).
   --first-progress-minutes N Stop if no progress artifact/evidence appears before this deadline in supervised mode (default: 5 for QC).
   --progress-artifact PATH Override the progress artifact path used in prompts/supervision.
+  --verdict-output PATH    Canonical QC verdict JSON template supplied by a rework-loop controller.
   --background             Run in detached tmux instead of foreground. Supervised mode defaults to background unless --foreground-supervised is set.
   --foreground-supervised  Allow supervised execution in the invoking foreground terminal; use only when max runtime is safely below the caller timeout.
   --session-name NAME      Override tmux session name for background mode.
@@ -32,6 +33,7 @@ session_name=""
 checkpoint_minutes="10"
 max_minutes="60"
 progress_artifact_override=""
+verdict_output_override=""
 first_progress_minutes="5"
 args=()
 
@@ -73,6 +75,11 @@ while [[ $# -gt 0 ]]; do
     --progress-artifact)
       progress_artifact_override=${2:-}
       [[ -n "$progress_artifact_override" ]] || { echo "error: --progress-artifact requires a value" >&2; exit 2; }
+      shift 2
+      ;;
+    --verdict-output)
+      verdict_output_override=${2:-}
+      [[ -n "$verdict_output_override" ]] || { echo "error: --verdict-output requires a value" >&2; exit 2; }
       shift 2
       ;;
     --session-name)
@@ -135,6 +142,11 @@ supervise_worker="$script_dir/supervise_worker.py"
 [[ -f "$supervise_worker" ]] || { echo "error: supervise_worker.py not found next to launcher: $supervise_worker" >&2; exit 1; }
 progress_artifact=${progress_artifact_override:-"$worktree_root/.stagepilot/worker-progress/${handoff_id}.md"}
 mkdir -p "$(dirname "$progress_artifact")"
+verdict_output=""
+if [[ -n "$verdict_output_override" ]]; then
+  verdict_output=$(realpath -m "$verdict_output_override")
+  [[ -f "$verdict_output" ]] || { echo "error: --verdict-output must name an existing controller template: $verdict_output" >&2; exit 1; }
+fi
 
 prompt=$(cat <<EOF
 Execute the QC handoff as dev-qc.
@@ -155,6 +167,27 @@ Return:
 4) required follow-up
 5) verdict count for the same acceptance scope if repeated
 If the issue is governance ambiguity, say it requires lead escalation.
+EOF
+)
+
+if [[ -n "$verdict_output" ]]; then
+  prompt+=$(cat <<EOF
+
+This QC call is controlled by the bounded same-scope rework loop. Replace the
+controller-created JSON template at this exact path before returning:
+$verdict_output
+Write a JSON object atomically with schema_version 1, the controller-provided
+acceptance_scope, verdict (pass or fail), evidence_paths, and required_follow_up.
+The required acceptance_scope is: ${STAGEPILOT_ACCEPTANCE_SCOPE:-not-provided}.
+For fail, include failure_class exactly as implementation_defect, evidence_gap,
+scope_or_requirements, approval_or_priority, or verification_or_release_risk,
+plus a non-empty gaps array. Do not reuse a prior verdict artifact. A missing or
+malformed artifact is an execution-integrity failure, not an implementation FAIL.
+EOF
+)
+fi
+
+prompt+=$(cat <<EOF
 Progress artifact path:
 $progress_artifact
 Required progress fields:
@@ -186,7 +219,7 @@ run_supervised() {
     --max-minutes "$max_minutes"
     --first-progress-minutes "$first_progress_minutes"
     --
-    hermes --profile dev-qc chat -q "$prompt"
+    env "HERMES_CWD=$worktree_root" "TERMINAL_CWD=$worktree_root" hermes --profile dev-qc chat -q "$prompt"
   )
 
   if [[ $background -eq 0 ]]; then
@@ -238,7 +271,7 @@ if [[ $background -eq 0 ]]; then
   echo "qc_handoff_artifact: $qc_handoff"
   echo "delivery_state: $delivery_state"
   echo "progress_artifact: $progress_artifact"
-  exec hermes --profile dev-qc chat -q "$prompt"
+  exec env "HERMES_CWD=$worktree_root" "TERMINAL_CWD=$worktree_root" hermes --profile dev-qc chat -q "$prompt"
 fi
 
 command -v tmux >/dev/null 2>&1 || { echo "error: tmux not found in PATH" >&2; exit 1; }
@@ -248,7 +281,7 @@ if [[ -z "$session_name" ]]; then
 fi
 log_file="$worktree_root/.stagepilot/worker-logs/${session_name}.log"
 exit_file="$worktree_root/.stagepilot/worker-logs/${session_name}.exit"
-run_script=$(printf 'hermes --profile dev-qc chat -q %q > %q 2>&1; status=$?; printf "%%s\\n" "$status" > %q' "$prompt" "$log_file" "$exit_file")
+run_script=$(printf 'env HERMES_CWD=%q TERMINAL_CWD=%q hermes --profile dev-qc chat -q %q > %q 2>&1; status=$?; printf "%%s\\n" "$status" > %q' "$worktree_root" "$worktree_root" "$prompt" "$log_file" "$exit_file")
 tmux new-session -d -s "$session_name" "bash -lc $(printf '%q' "$run_script")"
 
 echo "started: true"

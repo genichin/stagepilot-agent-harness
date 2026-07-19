@@ -301,6 +301,7 @@ blocker_codes = {
     'fast_shared_workdir_not_clean': 'fast_shared_workdir_not_clean',
     'fast_shared_workdir_in_use': 'fast_shared_workdir_in_use',
     'doctor_unavailable': 'stagepilot_doctor_required_missing',
+    'watcher_start_failed': 'supervisor_watcher_unavailable',
 }
 blocker_code = detail if detail.startswith('scope_') else blocker_codes.get(detail, 'launcher_prerequisite_missing')
 timestamp = datetime.now(timezone.utc).isoformat()
@@ -546,6 +547,20 @@ fi
 LOG_FILE="$LOG_DIR/${SESSION_NAME}.log"
 EXIT_FILE="$LOG_DIR/${SESSION_NAME}.exit"
 STATUS_FILE="$LOG_DIR/${SESSION_NAME}.status"
+WATCHER_MANIFEST_FILE="$LOG_DIR/${SESSION_NAME}.watcher.json"
+WATCHER_EVENT_FILE="$LOG_DIR/${SESSION_NAME}.terminal-events.jsonl"
+WATCHER_CURSOR_FILE="$LOG_DIR/${SESSION_NAME}.notification-cursor.json"
+WATCHER_READY_FILE="$LOG_DIR/${SESSION_NAME}.watcher-ready.json"
+WATCHER_LOG_FILE="$LOG_DIR/${SESSION_NAME}.watcher.log"
+WATCHER_SESSION_NAME="${SESSION_NAME}-watcher"
+WATCHER_SCRIPT="$SCRIPT_DIR/watch_runner_terminal.py"
+MISSING_ARTIFACT_GRACE_SECONDS="${STAGEPILOT_RUNNER_ARTIFACT_GRACE_SECONDS:-30}"
+if [[ ! "$MISSING_ARTIFACT_GRACE_SECONDS" =~ ^[0-9]+$ ]]; then
+  fail_blocked launcher_runtime_prepare_failed "STAGEPILOT_RUNNER_ARTIFACT_GRACE_SECONDS must be a non-negative integer"
+fi
+if [[ ! -f "$WATCHER_SCRIPT" ]]; then
+  fail_blocked watcher_start_failed "root runner terminal watcher is unavailable: $WATCHER_SCRIPT"
+fi
 if ! TMP_DIR="$(mktemp -d "${TMPDIR:-/tmp}/stagepilot-runner-${SESSION_NAME}.XXXXXX")"; then
   fail_blocked launcher_runtime_prepare_failed "failed to create launcher temporary directory"
 fi
@@ -720,8 +735,71 @@ esac
 EOF
 chmod +x "$RUNNER_SCRIPT"
 
-if [[ "$LAUNCH_MODE" == detached ]] && tmux has-session -t "$SESSION_NAME" 2>/dev/null; then
-  fail_blocked tmux_session_name_conflict "tmux session already exists: $SESSION_NAME"
+if ! python3 - "$REPO_ROOT" "$DELIVERY_STATE" "$WATCHER_MANIFEST_FILE" "$SESSION_NAME" "$EXIT_FILE" "$STATUS_FILE" "$LOG_FILE" "$WATCHER_EVENT_FILE" "$WATCHER_CURSOR_FILE" "$MISSING_ARTIFACT_GRACE_SECONDS" <<'PY'
+import json
+import os
+import sys
+import time
+from datetime import datetime, timezone
+from pathlib import Path
+
+(_repository_root, state_path, manifest_path, session_name, exit_file, status_file, log_file,
+ event_file, cursor_file, grace_seconds) = sys.argv[1:]
+artifact_paths = [Path(value).resolve() for value in (state_path, exit_file, status_file, log_file, event_file, cursor_file)]
+path_root = Path(os.path.commonpath([str(path) for path in artifact_paths]))
+if not path_root.is_dir():
+    raise SystemExit(f'watcher artifact root is not a directory: {path_root}')
+
+def safe_relative(value):
+    path = Path(value).resolve()
+    try:
+        return str(path.relative_to(path_root))
+    except ValueError as error:
+        raise SystemExit(f'watcher artifact path is outside repository root: {path}') from error
+
+with open(state_path, encoding='utf-8') as handle:
+    state = json.load(handle)
+if not isinstance(state, dict):
+    raise SystemExit('delivery state must be a JSON object')
+targets = state.get('notification_targets', [])
+if targets is not None and not isinstance(targets, list):
+    raise SystemExit('delivery state notification_targets must be an array when present')
+payload = {
+    'schema_version': 2,
+    'launch_id': session_name,
+    'created_at': datetime.now(timezone.utc).isoformat(),
+    'path_root': str(path_root),
+    'delivery_state': safe_relative(state_path),
+    'tmux_session': session_name,
+    'exit_file': safe_relative(exit_file),
+    'status_file': safe_relative(status_file),
+    'log_file': safe_relative(log_file),
+    'event_file': safe_relative(event_file),
+    'dispatch_cursor_file': safe_relative(cursor_file),
+    'missing_artifact_deadline_epoch': time.time() + int(grace_seconds),
+    'notification_targets': targets or [],
+}
+state['runner_terminal_watcher'] = {
+    'schema_version': 1,
+    'manifest_file': manifest_path,
+    'event_file': event_file,
+    'dispatch_cursor_file': cursor_file,
+    'tmux_session': f'{session_name}-watcher',
+}
+state['updated_at'] = datetime.now(timezone.utc).isoformat()
+with open(state_path, 'w', encoding='utf-8') as handle:
+    json.dump(state, handle, indent=2, sort_keys=True)
+    handle.write('\n')
+with open(manifest_path, 'w', encoding='utf-8') as handle:
+    json.dump(payload, handle, indent=2, sort_keys=True)
+    handle.write('\n')
+PY
+then
+  fail_blocked watcher_start_failed "failed to create root runner terminal watcher manifest"
+fi
+
+if [[ "$LAUNCH_MODE" == detached ]] && { tmux has-session -t "$SESSION_NAME" 2>/dev/null || tmux has-session -t "$WATCHER_SESSION_NAME" 2>/dev/null; }; then
+  fail_blocked tmux_session_name_conflict "tmux root or watcher session already exists: $SESSION_NAME / $WATCHER_SESSION_NAME"
 fi
 
 if [[ "$DRY_RUN" -eq 1 ]]; then
@@ -738,6 +816,9 @@ prepared_branch_name: ${PREPARED_BRANCH_NAME:-}
 log_file: $LOG_FILE
 exit_file: $EXIT_FILE
 status_file: $STATUS_FILE
+watcher_manifest_file: $WATCHER_MANIFEST_FILE
+watcher_event_file: $WATCHER_EVENT_FILE
+watcher_session_name: $WATCHER_SESSION_NAME
 launch_command: $([[ "$LAUNCH_MODE" == detached ]] && printf 'tmux new-session -d -s %s bash %s' "$SESSION_NAME" "$RUNNER_SCRIPT" || printf 'bash %s' "$RUNNER_SCRIPT")
 EOF
   exit 0
@@ -764,6 +845,32 @@ EOF
 fi
 
 tmux new-session -d -s "$SESSION_NAME" bash "$RUNNER_SCRIPT"
+if ! tmux new-session -d -s "$WATCHER_SESSION_NAME" bash -c 'exec python3 "$1" --manifest "$2" --ready-file "$3" >>"$4" 2>&1' _ "$WATCHER_SCRIPT" "$WATCHER_MANIFEST_FILE" "$WATCHER_READY_FILE" "$WATCHER_LOG_FILE"; then
+  tmux kill-session -t "$SESSION_NAME" >/dev/null 2>&1 || true
+  fail_blocked watcher_start_failed "failed to start detached root runner terminal watcher"
+fi
+watcher_ready=0
+for _ in {1..30}; do
+  if [[ -f "$WATCHER_READY_FILE" ]] && tmux has-session -t "$WATCHER_SESSION_NAME" 2>/dev/null; then
+    watcher_ready=1
+    break
+  fi
+  if ! tmux has-session -t "$WATCHER_SESSION_NAME" 2>/dev/null; then
+    break
+  fi
+  sleep 0.1
+done
+if [[ "$watcher_ready" -ne 1 ]]; then
+  tmux kill-session -t "$WATCHER_SESSION_NAME" >/dev/null 2>&1 || true
+  tmux kill-session -t "$SESSION_NAME" >/dev/null 2>&1 || true
+  fail_blocked watcher_start_failed "detached root runner terminal watcher did not become ready; inspect $WATCHER_LOG_FILE"
+fi
+WATCHER_PID="$(tmux list-panes -t "$WATCHER_SESSION_NAME" -F '#{pane_pid}' | head -n 1)"
+if [[ ! "$WATCHER_PID" =~ ^[0-9]+$ ]]; then
+  tmux kill-session -t "$WATCHER_SESSION_NAME" >/dev/null 2>&1 || true
+  tmux kill-session -t "$SESSION_NAME" >/dev/null 2>&1 || true
+  fail_blocked watcher_start_failed "detached root runner terminal watcher has no observable PID; inspect $WATCHER_LOG_FILE"
+fi
 
 cat <<EOF
 started: true
@@ -779,6 +886,10 @@ prepared_branch_name: ${PREPARED_BRANCH_NAME:-}
 log_file: $LOG_FILE
 exit_file: $EXIT_FILE
 status_file: $STATUS_FILE
+watcher_manifest_file: $WATCHER_MANIFEST_FILE
+watcher_event_file: $WATCHER_EVENT_FILE
+watcher_session_name: $WATCHER_SESSION_NAME
+watcher_pid: $WATCHER_PID
+inspect_watcher: tmux capture-pane -pt $WATCHER_SESSION_NAME
 inspect: tmux capture-pane -pt $SESSION_NAME
-attach: tmux attach -t $SESSION_NAME
 EOF
